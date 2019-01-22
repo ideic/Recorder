@@ -132,12 +132,14 @@
   <ItemGroup>
     <ClInclude Include="OverLappedContext.h" />
     <ClInclude Include="RecorderServer.h" />
+    <ClInclude Include="SocketHandler.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="OverLappedContext.cpp" />
     <ClCompile Include="RecorderServer.cpp" />
+    <ClCompile Include="SocketHandler.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>

@@ -5,17 +5,11 @@
 class OverLappedContext : public OVERLAPPED
 {
 private:
-	WSABUF _buffer;
-	SOCKET _socket;
-	DWORD _receivedBytes;
-	DWORD _flags;
-	sockaddr_in  _from;
-	int _fromLength;
-	HANDLE _listenIoPort;
+
 
 public:
 	OverLappedContext();
-	OverLappedContext(SOCKET socket, HANDLE listenIoPort);
+	OverLappedContext(SOCKET socket);
 	//OverLappedContext(const OverLappedContext& ctx) = default;
 	//OverLappedContext & operator=(const OverLappedContext& ctx) = default;
 
@@ -23,11 +17,11 @@ public:
 
 	void ResetBuffer();
 
-	SOCKET& Socket() { return _socket; }
-	WSABUF& Buffer() { return _buffer; }
-	DWORD& ReceivedBytes() { return _receivedBytes; }
-	DWORD& Flags() { return _flags; }
-	sockaddr_in & From() { return _from; }
-	int& FromLength() { return _fromLength; }
+	WSABUF Buffer;
+	SOCKET Socket;
+	DWORD ReceivedBytes;
+	DWORD Flags;
+	sockaddr_in  From;
+	int FromLength;
 };
 

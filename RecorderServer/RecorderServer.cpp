@@ -72,7 +72,7 @@ void RecorderServer::Worker() {
 		
 				overlappedContext->ResetBuffer();
 
-				int iresult = WSARecvFrom(overlappedContext->Socket(), &overlappedContext->Buffer(), 1, &overlappedContext->ReceivedBytes(), &overlappedContext->Flags(), (sockaddr*)& overlappedContext->From(), &overlappedContext->FromLength(), overlappedContext, NULL);
+				int iresult = WSARecvFrom(overlappedContext->Socket, &overlappedContext->Buffer, 1, &overlappedContext->ReceivedBytes, &overlappedContext->Flags, (sockaddr*)& overlappedContext->From, &overlappedContext->FromLength, overlappedContext, NULL);
 				
 				if (iresult != 0) {
 					iresult = WSAGetLastError();
@@ -97,73 +97,23 @@ void RecorderServer::Worker() {
 
 void RecorderServer::CreatePort(std::string port) {
 
-	int iport = std::stoi(port);
+	std::shared_ptr<SocketHandler>  socket = std::make_shared<SocketHandler>();
 
-	struct addrinfo hints, *addrInfoInit;
-	ZeroMemory(&hints, sizeof(hints));
+	socket->CreateSocket(std::stoi(port), _completionPort);
 
-	//hints.ai_flags = AI_PASSIVE;
-	hints.ai_family = AF_INET;
-	hints.ai_socktype = SOCK_DGRAM;
-	hints.ai_protocol = IPPROTO_UDP;
+	_openPorts.push_back(socket);
 
-	int iResult = getaddrinfo(NULL, port.c_str(), &hints, &addrInfoInit);
-	if (iResult != 0) {
-		throw std::runtime_error("getaddrinfo failed with error:" + iResult);
-	}
-
-	std::shared_ptr<addrinfo> addrInfo(addrInfoInit, freeaddrinfo);
-
-	auto listenSocket = WSASocket(addrInfo->ai_family, addrInfo->ai_socktype, addrInfo->ai_protocol, NULL, 0, WSA_FLAG_OVERLAPPED);
-	if (listenSocket == INVALID_SOCKET) {
-		throw std::runtime_error("socket failed with error: " + WSAGetLastError());
-	}
-
-	char opt = 1;
-	if (setsockopt(listenSocket, SOL_SOCKET, SO_EXCLUSIVEADDRUSE, &opt, sizeof(opt)))
-	{
-		iResult = WSAGetLastError();
-		throw std::runtime_error("Cannot set socket to use exclusive address. ErrorCode:" + iResult);
-	}
-
-	opt = 0;
-	if (setsockopt(listenSocket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)))
-	{
-		iResult = WSAGetLastError();
-		throw std::runtime_error("Cannot set socket to don't reuse address. ErrorCode:" + iResult);
-	}
-
-	if (bind(listenSocket, addrInfo->ai_addr, (int)addrInfo->ai_addrlen) == SOCKET_ERROR) {
-		iResult = WSAGetLastError();
-		throw std::runtime_error("Cannot bind socket to local address. Error:" + iResult);
-	}
-
-
-	auto listenPort = CreateIoCompletionPort((HANDLE)listenSocket, _completionPort.get(), iport, 0);
-
-	if (listenPort == 0) {
-		iResult = WSAGetLastError();
-		closesocket(listenSocket);
-		throw std::runtime_error("Cannot set socket to use exclusive address. ErrorCode:" + iResult);
-	}
-
-	_openPorts.emplace_back(std::make_shared<OverLappedContext>(listenSocket, listenPort));
-
-	auto & ctx = _openPorts[0];
+	auto & ctx = socket->Ctx;
 	ctx->ResetBuffer();
 
-	int iresult = WSARecvFrom(_openPorts[0]->Socket(), &ctx->Buffer(), 1, &ctx->ReceivedBytes(), &ctx->Flags(), (sockaddr*)& ctx->From(), &ctx->FromLength(), ctx.get(), NULL);
+	int iresult = WSARecvFrom(ctx->Socket, &ctx->Buffer, 1, &ctx->ReceivedBytes, &ctx->Flags, (sockaddr*)& ctx->From, &ctx->FromLength, ctx.get(), NULL);
 	iresult = WSAGetLastError();
 
 }
 
 void RecorderServer::StopServer()
 {
-	_completionPort.release();
-
-	std::for_each(_openPorts.begin(), _openPorts.end(), [](std::shared_ptr<OverLappedContext> &port) {
-		closesocket(port->Socket());
-	});
+	_completionPort.reset();
 
 	_openPorts.clear();
 	_endpoints.clear();

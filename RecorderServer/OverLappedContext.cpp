@@ -3,35 +3,30 @@
 
 #define BUF_SIZE 2*1024
 
-OverLappedContext::OverLappedContext():OverLappedContext(NULL, nullptr) {
+OverLappedContext::OverLappedContext():OverLappedContext(NULL) {
 
 }
-OverLappedContext::OverLappedContext(SOCKET socket, HANDLE listenIoPort):_socket(socket), _receivedBytes(0), _flags(0), _fromLength(sizeof(sockaddr_in)), _listenIoPort(listenIoPort)
+OverLappedContext::OverLappedContext(SOCKET socket):Socket(socket), ReceivedBytes(0), Flags(0), FromLength(sizeof(sockaddr_in))
 {
 	hEvent = 0;
-	_buffer.buf = nullptr;
+	Buffer.buf = nullptr;
 }
 
 void OverLappedContext::ResetBuffer() {
-	if (_buffer.buf != nullptr) {
-		delete[] _buffer.buf;
-		_buffer.len = 0;
+	if (Buffer.buf != nullptr) {
+		delete[] Buffer.buf;
+		Buffer.len = 0;
 	}
 
-	_buffer.len = BUF_SIZE;
-	_buffer.buf = new char[BUF_SIZE];
+	Buffer.len = BUF_SIZE;
+	Buffer.buf = new char[BUF_SIZE];
 
 
-	memset(&_from, 0, sizeof(sockaddr_in));
+	memset(&From, 0, sizeof(sockaddr_in));
 }
 
 OverLappedContext::~OverLappedContext()
 {
-	
-	//if (_listenIoPort != nullptr) {
-	//	CloseHandle(_listenIoPort);
-	//	_listenIoPort = nullptr;
-	//}
-
-	//closesocket(_socket);
+	delete[] Buffer.buf;
+	Buffer.buf = nullptr;
 }

@@ -5,7 +5,8 @@
 #include <string>
 #include <thread>
 
-#include "OverLappedContext.h"
+#include "SocketHandler.h"
+
 
 #include <WinSock2.h>
 #include <windows.h>
@@ -13,8 +14,8 @@
 class RecorderServer {
 private:
 	std::vector<std::string> _endpoints;
-	std::vector<std::shared_ptr<OverLappedContext>> _openPorts;
-	std::unique_ptr < void, std::function<void(HANDLE)>> _completionPort{NULL, CloseHandle};
+	std::vector<std::shared_ptr<SocketHandler>> _openPorts;
+	std::shared_ptr < void> _completionPort{NULL, CloseHandle};
 	std::vector<std::thread> _workers;
 
 	void CreatePort(std::string port);
