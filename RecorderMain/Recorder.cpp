@@ -21,6 +21,7 @@ int main()
 		std::cerr << e.what() << std::endl;
 		exit(1);
 	}
+
 	std::cin.ignore();
 	recorderServer.StopServer();
     return 0;
