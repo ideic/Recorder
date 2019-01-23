@@ -6,7 +6,7 @@
 #include "ws2tcpip.h"
 #include <string>
 #include <functional>
-
+#include "LoggerFactory.h"
 
 RecorderServer::RecorderServer():_terminate(false)
 {
@@ -36,12 +36,21 @@ void RecorderServer::StartServer(const std::vector<std::string>& endpoints, uint
 		throw std::runtime_error("IO Completion port create failed with error: " + GetLastError());
 	}
 
+	LoggerFactory::Logger()->LogInfo("Start RecordingServer Worker threads:" + std::to_string(numberOfThreads));
+
 	StartWorkers(numberOfThreads);
+
+	LoggerFactory::Logger()->LogInfo("Start FileServer Worker. Threads:" + std::to_string(numberOfThreads));
+
 	_fileServer->StartServer(numberOfThreads);
+
+	LoggerFactory::Logger()->LogInfo("Start Listening");
 
 	std::for_each(endpoints.begin(), endpoints.end(), [this](const std::string &port) {
 		CreatePort(port);
 	});
+
+	LoggerFactory::Logger()->LogInfo("RecordingServer is running");
 }
 
 void RecorderServer::StartWorkers(uint8_t numberOfThreads)
@@ -65,7 +74,7 @@ void RecorderServer::Worker() {
 			&numberOfBytes,
 			&completionKey,
 			&ctx,
-			10000 //  dwMilliseconds
+			1000 //  dwMilliseconds
 		);
 
 		if (ioSucceeds) {
@@ -81,6 +90,7 @@ void RecorderServer::Worker() {
 				if (iresult != 0) {
 					iresult = WSAGetLastError();
 					if (iresult != WSA_IO_PENDING) {
+						LoggerFactory::Logger()->LogWarning("RecordingServer IOCP 2nd WSARecvFrom init failed with Code:" + iresult);
 						//socket closed;
 						iresult = 0;
 					}
@@ -90,8 +100,10 @@ void RecorderServer::Worker() {
 		else {
 			auto iResult = WSAGetLastError();
 
-			if (WSAGetLastError() != WAIT_TIMEOUT)
+			if (iResult != WAIT_TIMEOUT)
 			{
+				LoggerFactory::Logger()->LogWarning("RecordingServer IOCP GetQueuedCompletionStatus failed with Code:" + iResult);
+
 				// Init Receive ?
 			}
 		}
@@ -111,7 +123,16 @@ void RecorderServer::CreatePort(std::string port) {
 	ctx->ResetBuffer();
 
 	int iresult = WSARecvFrom(ctx->Socket, &ctx->Buffer, 1, &ctx->ReceivedBytes, &ctx->Flags, (sockaddr*)& ctx->From, &ctx->FromLength, ctx.get(), NULL);
-	iresult = WSAGetLastError();
+
+	if (iresult != 0) {
+		iresult = WSAGetLastError();
+		if (iresult != WSA_IO_PENDING) {
+			LoggerFactory::Logger()->LogWarning("RecordingServer IOCP 1st WSARecvFrom init failed with Code:" + iresult);
+			//socket closed;
+			iresult = 0;
+		}
+	}
+
 
 }
 

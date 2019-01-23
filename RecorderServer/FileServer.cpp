@@ -2,7 +2,7 @@
 #include "FileServer.h"
 #include <algorithm>
 #include "ws2tcpip.h"
-
+#include "LoggerFactory.h"
 
 FileServer::FileServer(std::wstring workDir): _workDir(workDir), _terminate(false)
 {
@@ -22,10 +22,13 @@ void FileServer::StartServer(uint8_t numberOfThreads)
 		throw std::runtime_error("IO Completion port create failed at FileServer with error: " + GetLastError());
 	}
 
+	LoggerFactory::Logger()->LogInfo("File Server starts receivedPacketWorkers with threads:" + std::to_string(numberOfThreads));
 
 	for (int i = 0; i < numberOfThreads; ++i) {
 		_receivedPacketWorkers.emplace_back([&]() {ReceivedPacketWorker(); });
 	}
+
+	LoggerFactory::Logger()->LogInfo("File Server starts FileWritertWorkers with threads:" + std::to_string(numberOfThreads));
 
 	for (int i = 0; i < numberOfThreads; ++i) {
 		_fileWriterWorkers.emplace_back([&]() {FileWriterWorker(); });
@@ -34,6 +37,9 @@ void FileServer::StartServer(uint8_t numberOfThreads)
 
 void FileServer::StopServer() {
 	_terminate = true;
+
+	LoggerFactory::Logger()->LogInfo("Stop FileServer ReceivedPacketWorkers");
+
 
 	//wake up all the threads, which are locked on queue
 	for (auto& worker : _receivedPacketWorkers) {
@@ -44,6 +50,8 @@ void FileServer::StopServer() {
 	for (auto& worker : _receivedPacketWorkers) {
 		worker.join();
 	};
+
+	LoggerFactory::Logger()->LogInfo("Stop FileServer FileWriteWorkers");
 
 	for (auto& worker : _fileWriterWorkers) {
 		worker.join();
@@ -65,7 +73,7 @@ void FileServer::FileWriterWorker() {
 			&numberOfBytes,
 			&completionKey,
 			&ctx,
-			10000 //  dwMilliseconds
+			1000 //  dwMilliseconds
 		);
 
 		if (ioSucceeds) {
@@ -101,6 +109,8 @@ void FileServer::ReceivedPacketWorker()
 		WriteFile(fileInfo.fileHandle, ctx->buffer.data(), static_cast<DWORD>(ctx->buffer.size()), NULL, ctx.get());
 	}
 
+	LoggerFactory::Logger()->LogInfo("Stop FileServer Close Files");
+
 	for (auto& fileHandle : _fileHandleList) {
 		CloseHandle(fileHandle.second.fileHandle);
 		CloseHandle(fileHandle.second.IOPort);
@@ -125,12 +135,13 @@ FileServer::fileInfo FileServer::OpenFile(FileServer::packet ppacket) {
 		if (GetLastError() == ERROR_FILE_NOT_FOUND) {
 			result.fileHandle = CreateFile(fileName.c_str(), FILE_APPEND_DATA, FILE_SHARE_WRITE, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);
 			if (result.fileHandle == INVALID_HANDLE_VALUE) {
-				// Log
+				LoggerFactory::Logger()->LogWarning(L"Cannot Create file:" + fileName);
 				return result;
 			}
 		}
 		else {
-			//Log  "Cannot open input file. Error Code:" << GetLastError() << std::endl;
+			LoggerFactory::Logger()->LogWarning(L"Cannot Create file for append:" + fileName);
+
 			return result;
 		}
 	}
@@ -139,8 +150,7 @@ FileServer::fileInfo FileServer::OpenFile(FileServer::packet ppacket) {
 
 	if (!result.IOPort) {
 		int error = GetLastError();
-		//std::cerr << "Init fileCompletionPort Port failed. Error Code:" << GetLastError() << std::endl;
-		//continue;
+		LoggerFactory::Logger()->LogWarning("Cannot Create file IOPort:" + error);
 	}
 
 	_fileHandleList[fileName] = result;
