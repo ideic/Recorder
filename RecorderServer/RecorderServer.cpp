@@ -8,7 +8,7 @@
 #include <functional>
 
 
-RecorderServer::RecorderServer()
+RecorderServer::RecorderServer():_terminate(false)
 {
 	WSADATA wsaData;
 	int iResult;
@@ -24,9 +24,11 @@ RecorderServer::~RecorderServer()
 	WSACleanup();
 }
 
-void RecorderServer::StartServer(const std::vector<std::string>& endpoints)
+void RecorderServer::StartServer(const std::vector<std::string>& endpoints, uint8_t numberOfThreads, std::wstring workDir)
 {
 	_endpoints = endpoints;
+	_fileServer = std::make_unique<FileServer>(workDir);
+	_terminate = false;
 
 	_completionPort.reset(CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, NULL, 0));
 
@@ -34,7 +36,8 @@ void RecorderServer::StartServer(const std::vector<std::string>& endpoints)
 		throw std::runtime_error("IO Completion port create failed with error: " + GetLastError());
 	}
 
-	StartWorkers(1);
+	StartWorkers(numberOfThreads);
+	_fileServer->StartServer(numberOfThreads);
 
 	std::for_each(endpoints.begin(), endpoints.end(), [this](const std::string &port) {
 		CreatePort(port);
@@ -49,7 +52,7 @@ void RecorderServer::StartWorkers(uint8_t numberOfThreads)
 }
 
 void RecorderServer::Worker() {
-	while (1) {
+	while (!_terminate) {
 
 		DWORD numberOfBytes= 0;
 		unsigned long long completionKey = 0;
@@ -68,12 +71,13 @@ void RecorderServer::Worker() {
 		if (ioSucceeds) {
 			if (&numberOfBytes > 0) {
 
-				auto overlappedContext = (OverLappedContext*)ctx;
+				auto overlappedContext = (SocketOverLappedContext*)ctx;
 		
+				_fileServer->SaveData(overlappedContext->Buffer, numberOfBytes, overlappedContext->From);
+
 				overlappedContext->ResetBuffer();
 
 				int iresult = WSARecvFrom(overlappedContext->Socket, &overlappedContext->Buffer, 1, &overlappedContext->ReceivedBytes, &overlappedContext->Flags, (sockaddr*)& overlappedContext->From, &overlappedContext->FromLength, overlappedContext, NULL);
-				
 				if (iresult != 0) {
 					iresult = WSAGetLastError();
 					if (iresult != WSA_IO_PENDING) {
@@ -113,8 +117,15 @@ void RecorderServer::CreatePort(std::string port) {
 
 void RecorderServer::StopServer()
 {
+	_terminate = true;
+	for (auto& worker : _workers) {
+		worker.join();
+	};
+
+	_fileServer->StopServer();
 	_completionPort.reset();
 
 	_openPorts.clear();
 	_endpoints.clear();
+	_workers.clear();
 }

@@ -14,7 +14,7 @@ int main()
 	RecorderServer recorderServer;
 	try
 	{
-		recorderServer.StartServer({ "16778" });
+		recorderServer.StartServer({ "16778" },1, L"d:\\Idei\\POC\\RecorderGitHub\\output\\");
 	}
 	catch (const std::exception& e)
 	{

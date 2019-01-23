@@ -130,14 +130,19 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="OverLappedContext.h" />
+    <ClInclude Include="BlockingQueue.h" />
+    <ClInclude Include="FileOverLappedContext.h" />
+    <ClInclude Include="FileServer.h" />
+    <ClInclude Include="SocketOverLappedContext.h" />
     <ClInclude Include="RecorderServer.h" />
     <ClInclude Include="SocketHandler.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="OverLappedContext.cpp" />
+    <ClCompile Include="FileOverLappedContext.cpp" />
+    <ClCompile Include="FileServer.cpp" />
+    <ClCompile Include="SocketOverLappedContext.cpp" />
     <ClCompile Include="RecorderServer.cpp" />
     <ClCompile Include="SocketHandler.cpp" />
     <ClCompile Include="stdafx.cpp">

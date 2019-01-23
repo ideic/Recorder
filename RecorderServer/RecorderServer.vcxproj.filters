@@ -27,10 +27,19 @@
     <ClInclude Include="RecorderServer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="OverLappedContext.h">
+    <ClInclude Include="SocketHandler.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SocketHandler.h">
+    <ClInclude Include="FileServer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BlockingQueue.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SocketOverLappedContext.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FileOverLappedContext.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -41,10 +50,16 @@
     <ClCompile Include="RecorderServer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="OverLappedContext.cpp">
+    <ClCompile Include="SocketHandler.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="SocketHandler.cpp">
+    <ClCompile Include="FileServer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SocketOverLappedContext.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FileOverLappedContext.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

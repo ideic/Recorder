@@ -2,18 +2,18 @@
 
 #include <WinSock2.h>
 #include <windows.h>
-class OverLappedContext : public OVERLAPPED
+class SocketOverLappedContext : public OVERLAPPED
 {
 private:
 
 
 public:
-	OverLappedContext();
-	OverLappedContext(SOCKET socket);
+	SocketOverLappedContext();
+	SocketOverLappedContext(SOCKET socket);
 	//OverLappedContext(const OverLappedContext& ctx) = default;
 	//OverLappedContext & operator=(const OverLappedContext& ctx) = default;
 
-	~OverLappedContext();
+	~SocketOverLappedContext();
 
 	void ResetBuffer();
 
@@ -23,5 +23,6 @@ public:
 	DWORD Flags;
 	sockaddr_in  From;
 	int FromLength;
+	HANDLE IOPort;
 };
 

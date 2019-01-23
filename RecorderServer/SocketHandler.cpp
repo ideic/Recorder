@@ -13,6 +13,7 @@ SocketHandler::~SocketHandler()
 {
 	if (Ctx != nullptr) {
 		closesocket(Ctx->Socket);
+		CloseHandle(Ctx->IOPort);
 	}
 }
 
@@ -66,6 +67,7 @@ void SocketHandler::CreateSocket(int16_t portNumber, std::shared_ptr<void> compl
 		throw std::runtime_error("Cannot set socket to use exclusive address. ErrorCode:" + iResult);
 	}
 
-	Ctx = std::make_shared<OverLappedContext>();
+	Ctx = std::make_shared<SocketOverLappedContext>();
 	Ctx->Socket = listenSocket;
+	Ctx->IOPort = listenPort;
 }

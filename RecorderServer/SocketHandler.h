@@ -1,7 +1,7 @@
 #pragma once
 #include <WinSock2.h>
 #include <windows.h>
-#include "OverLappedContext.h"
+#include "SocketOverLappedContext.h"
 #include <memory>
 
 class SocketHandler
@@ -12,6 +12,6 @@ public:
 
 	void CreateSocket(int16_t portNumber, std::shared_ptr<void> completionPort);
 
-	std::shared_ptr<OverLappedContext> Ctx;
+	std::shared_ptr<SocketOverLappedContext> Ctx;
 };
 
