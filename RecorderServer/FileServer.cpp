@@ -160,7 +160,7 @@ FileServer::fileInfo FileServer::OpenFile(FileServer::packet ppacket) {
 void FileServer::SaveData(WSABUF buffer, DWORD receivedBytes, sockaddr_in from)
 {
 	wchar_t ip[INET_ADDRSTRLEN];
-	InetNtop(from.sin_family, &from, ip, INET_ADDRSTRLEN);
+	InetNtop(from.sin_family, &from.sin_addr, ip, INET_ADDRSTRLEN);
 
 	packet p;
 	p.buffer.clear();
