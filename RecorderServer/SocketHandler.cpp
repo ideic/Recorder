@@ -13,11 +13,10 @@ SocketHandler::~SocketHandler()
 {
 	if (Ctx != nullptr) {
 		closesocket(Ctx->Socket);
-		CloseHandle(Ctx->IOPort);
 	}
 }
 
-void SocketHandler::CreateSocket(int16_t portNumber, std::shared_ptr<void> completionPort)
+void SocketHandler::CreateSocket(int16_t portNumber, HANDLE completionPort)
 {
 	struct addrinfo hints, *addrInfoInit;
 	ZeroMemory(&hints, sizeof(hints));
@@ -59,7 +58,7 @@ void SocketHandler::CreateSocket(int16_t portNumber, std::shared_ptr<void> compl
 	}
 
 
-	auto listenPort = CreateIoCompletionPort((HANDLE)listenSocket, completionPort.get(), portNumber, 0);
+	auto listenPort = CreateIoCompletionPort((HANDLE)listenSocket, completionPort, portNumber, 0);
 
 	if (listenPort == 0) {
 		iResult = WSAGetLastError();

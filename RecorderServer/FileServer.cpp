@@ -10,15 +10,16 @@ FileServer::FileServer(std::wstring workDir): _workDir(workDir), _terminate(fals
 
 FileServer::~FileServer()
 {
+	CloseHandle(_completionPort);
 }
 
 void FileServer::StartServer(uint8_t numberOfThreads)
 {
 	_terminate = false;
 
-	_completionPort.reset(CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, NULL, 0));
+	_completionPort = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, NULL, 0);
 
-	if (_completionPort.get() == NULL) {
+	if (!_completionPort) {
 		throw std::runtime_error("IO Completion port create failed at FileServer with error: " + GetLastError());
 	}
 
@@ -69,7 +70,7 @@ void FileServer::FileWriterWorker() {
 		LPOVERLAPPED ctx = 0;
 
 		auto ioSucceeds = GetQueuedCompletionStatus(
-			_completionPort.get(),
+			_completionPort,
 			&numberOfBytes,
 			&completionKey,
 			&ctx,
@@ -113,7 +114,7 @@ void FileServer::ReceivedPacketWorker()
 
 	for (auto& fileHandle : _fileHandleList) {
 		CloseHandle(fileHandle.second.fileHandle);
-		CloseHandle(fileHandle.second.IOPort);
+		//CloseHandle(fileHandle.second.IOPort);
 	}
 }
 
@@ -146,7 +147,7 @@ FileServer::fileInfo FileServer::OpenFile(FileServer::packet ppacket) {
 		}
 	}
 	
-	result.IOPort = CreateIoCompletionPort(result.fileHandle, _completionPort.get(), (int16_t)ppacket.port, 0);
+	result.IOPort = CreateIoCompletionPort(result.fileHandle, _completionPort, (int16_t)ppacket.port, 0);
 
 	if (!result.IOPort) {
 		int error = GetLastError();

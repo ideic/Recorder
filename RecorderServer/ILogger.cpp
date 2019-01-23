@@ -9,12 +9,10 @@
 #include <codecvt>
 void ILogger::LogWarning(std::wstring & message)
 {
-	std::wstring string_to_convert;
-
 	//setup converter
 	std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
 
-	std::string converted_str = converter.to_bytes(string_to_convert);
+	std::string converted_str = converter.to_bytes(message);
 	LogWarning(converted_str);
 }
 std::string ILogger::Now()

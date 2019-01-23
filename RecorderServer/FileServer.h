@@ -30,7 +30,7 @@ private:
 
 	bool _terminate;
 	BlockingQueue<packet> _queue;
-	std::shared_ptr < void> _completionPort{ NULL, CloseHandle };
+	HANDLE _completionPort{ NULL};
 	std::unordered_map<int32_t, std::shared_ptr<FileOverLappedContext>> _ctxList;
 	std::unordered_map<std::wstring, fileInfo> _fileHandleList;
 
