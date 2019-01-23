@@ -10,7 +10,7 @@ public:
 	SocketHandler();
 	~SocketHandler();
 
-	void CreateSocket(int16_t portNumber, std::shared_ptr<void> completionPort);
+	void CreateSocket(int16_t portNumber, HANDLE completionPort);
 
 	std::shared_ptr<SocketOverLappedContext> Ctx;
 };

@@ -21,18 +21,19 @@ RecorderServer::RecorderServer():_terminate(false)
 
 RecorderServer::~RecorderServer()
 {
+	CloseHandle(_completionPort);
 	WSACleanup();
 }
 
-void RecorderServer::StartServer(const std::vector<std::string>& endpoints, uint8_t numberOfThreads, std::wstring workDir)
+void RecorderServer::StartServer(const std::vector<int>& ports, uint8_t numberOfThreads, std::wstring workDir)
 {
-	_endpoints = endpoints;
+
 	_fileServer = std::make_unique<FileServer>(workDir);
 	_terminate = false;
 
-	_completionPort.reset(CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, NULL, 0));
+	_completionPort = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, NULL, 0);
 
-	if (_completionPort.get() == NULL) {
+	if (!_completionPort) {
 		throw std::runtime_error("IO Completion port create failed with error: " + GetLastError());
 	}
 
@@ -46,7 +47,7 @@ void RecorderServer::StartServer(const std::vector<std::string>& endpoints, uint
 
 	LoggerFactory::Logger()->LogInfo("Start Listening");
 
-	std::for_each(endpoints.begin(), endpoints.end(), [this](const std::string &port) {
+	std::for_each(ports.begin(), ports.end(), [this](const int port) {
 		CreatePort(port);
 	});
 
@@ -67,10 +68,8 @@ void RecorderServer::Worker() {
 		unsigned long long completionKey = 0;
 		LPOVERLAPPED ctx = 0;
 
-		auto c = _completionPort.get();
-
 		auto ioSucceeds = GetQueuedCompletionStatus(
-			_completionPort.get(),
+			_completionPort,
 			&numberOfBytes,
 			&completionKey,
 			&ctx,
@@ -111,11 +110,11 @@ void RecorderServer::Worker() {
 	}
 }
 
-void RecorderServer::CreatePort(std::string port) {
+void RecorderServer::CreatePort(int port) {
 
 	std::shared_ptr<SocketHandler>  socket = std::make_shared<SocketHandler>();
 
-	socket->CreateSocket(std::stoi(port), _completionPort);
+	socket->CreateSocket(port, _completionPort);
 
 	_openPorts.push_back(socket);
 
@@ -150,13 +149,7 @@ void RecorderServer::StopServer()
 	LoggerFactory::Logger()->LogInfo("RecordingServer Clear OpenPorts");
 	_openPorts.clear();
 
-	LoggerFactory::Logger()->LogInfo("RecordingServer Clear EndPoints");
-	_endpoints.clear();
-
 	LoggerFactory::Logger()->LogInfo("RecordingServer Clear Workers");
 	_workers.clear();
-
-	LoggerFactory::Logger()->LogInfo("RecordingServer CompletionPort");
-	_completionPort.reset();
 
 }
