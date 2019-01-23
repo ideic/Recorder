@@ -139,14 +139,24 @@ void RecorderServer::CreatePort(std::string port) {
 void RecorderServer::StopServer()
 {
 	_terminate = true;
+	LoggerFactory::Logger()->LogInfo("RecordingServer Stop Workers");
+
 	for (auto& worker : _workers) {
 		worker.join();
 	};
-
+	LoggerFactory::Logger()->LogInfo("RecordingServer Stop File Server");
 	_fileServer->StopServer();
+
+	LoggerFactory::Logger()->LogInfo("RecordingServer Clear OpenPorts");
+	_openPorts.clear();
+
+	LoggerFactory::Logger()->LogInfo("RecordingServer Clear EndPoints");
+	_endpoints.clear();
+
+	LoggerFactory::Logger()->LogInfo("RecordingServer Clear Workers");
+	_workers.clear();
+
+	LoggerFactory::Logger()->LogInfo("RecordingServer CompletionPort");
 	_completionPort.reset();
 
-	_openPorts.clear();
-	_endpoints.clear();
-	_workers.clear();
 }
