@@ -19,7 +19,7 @@ private:
 	std::vector<std::thread> _workers;
 	std::unique_ptr<FileServer> _fileServer;
 
-	void CreatePort(int port);
+	void CreatePort(const std::string &host, int port);
 	void Worker();
 	void StartWorkers(uint8_t numberOfThreads);
 	
@@ -28,7 +28,7 @@ public:
 	RecorderServer();
 	~RecorderServer();
 
-	void StartServer(const std::vector<int> &ports, uint8_t numberOfThreads, std::wstring workDir);
+	void StartServer(const std::string &host,  const std::vector<int> &ports, uint8_t numberOfThreads, std::wstring workDir);
 	
 
 	void StopServer();

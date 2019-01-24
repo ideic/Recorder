@@ -16,7 +16,7 @@ SocketHandler::~SocketHandler()
 	}
 }
 
-void SocketHandler::CreateSocket(int16_t portNumber, HANDLE completionPort)
+void SocketHandler::CreateSocket(const std::string &host, int16_t portNumber, HANDLE completionPort)
 {
 	struct addrinfo hints, *addrInfoInit;
 	ZeroMemory(&hints, sizeof(hints));
@@ -26,7 +26,7 @@ void SocketHandler::CreateSocket(int16_t portNumber, HANDLE completionPort)
 	hints.ai_socktype = SOCK_DGRAM;
 	hints.ai_protocol = IPPROTO_UDP;
 
-	int iResult = getaddrinfo("172.16.81.12", std::to_string(portNumber).c_str(), &hints, &addrInfoInit);
+	int iResult = getaddrinfo(host.c_str(), std::to_string(portNumber).c_str(), &hints, &addrInfoInit);
 	if (iResult != 0) {
 		throw std::runtime_error("getaddrinfo failed with error:" + iResult);
 	}

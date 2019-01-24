@@ -25,7 +25,7 @@ RecorderServer::~RecorderServer()
 	WSACleanup();
 }
 
-void RecorderServer::StartServer(const std::vector<int>& ports, uint8_t numberOfThreads, std::wstring workDir)
+void RecorderServer::StartServer(const std::string &host, const std::vector<int>& ports, uint8_t numberOfThreads, std::wstring workDir)
 {
 
 	_fileServer = std::make_unique<FileServer>(workDir);
@@ -47,8 +47,8 @@ void RecorderServer::StartServer(const std::vector<int>& ports, uint8_t numberOf
 
 	LoggerFactory::Logger()->LogInfo("Start Listening");
 
-	std::for_each(ports.begin(), ports.end(), [this](const int port) {
-		CreatePort(port);
+	std::for_each(ports.begin(), ports.end(), [this, &host](const int port) {
+		CreatePort(host, port);
 	});
 
 	LoggerFactory::Logger()->LogInfo("RecordingServer is running");
@@ -110,11 +110,11 @@ void RecorderServer::Worker() {
 	}
 }
 
-void RecorderServer::CreatePort(int port) {
+void RecorderServer::CreatePort(const std::string &host, int port) {
 
 	std::shared_ptr<SocketHandler>  socket = std::make_shared<SocketHandler>();
 
-	socket->CreateSocket(port, _completionPort);
+	socket->CreateSocket(host, port, _completionPort);
 
 	_openPorts.push_back(socket);
 

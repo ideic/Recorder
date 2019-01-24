@@ -44,8 +44,8 @@ int main(int argc, char* argv[])
 	InputParser parser(argc, argv);
 
 	// Validate the parameters
-	if (argc != 11) {
-		printf("usage: --portFrom [PORT_FROM] --portTo [PORT_TO] --logfile [FULLPATH WITH EXTENSION] --threads [number of threads] --destFolder [DEST_FOLDER]\n");
+	if (argc != 13) {
+		printf("usage: --hostip [HOST IP] --portFrom [PORT_FROM] --portTo [PORT_TO] --logfile [FULLPATH WITH EXTENSION] --threads [number of threads] --destFolder [DEST_FOLDER]\n");
 		return 1;
 	}
 
@@ -57,6 +57,7 @@ int main(int argc, char* argv[])
 	int to = std::stoi(parser.getCmdOption("--portTo"));
 	uint8_t threads = std::stoi(parser.getCmdOption("--threads"));
 	std::string destFolder = parser.getCmdOption("--destFolder");
+	std::string host = parser.getCmdOption("--hostip");
 
 	//setup converter
 	std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
@@ -71,7 +72,7 @@ int main(int argc, char* argv[])
 
 	try
 	{
-		recorderServer.StartServer(fromTo,threads, destFolderW);
+		recorderServer.StartServer(host, fromTo,threads, destFolderW);
 		std::cin.ignore();
 		recorderServer.StopServer();
 	}
