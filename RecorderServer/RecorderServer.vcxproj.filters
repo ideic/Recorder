@@ -16,6 +16,9 @@
     <Filter Include="Logger">
       <UniqueIdentifier>{b5b2b570-31c6-48b8-9a25-3de1f6a78739}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Network">
+      <UniqueIdentifier>{91b90754-9143-4879-a36d-35a036609183}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
@@ -60,6 +63,9 @@
     <ClInclude Include="ConsoleLogger.h">
       <Filter>Logger</Filter>
     </ClInclude>
+    <ClInclude Include="PCapPacket.h">
+      <Filter>Network</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -94,6 +100,9 @@
     </ClCompile>
     <ClCompile Include="ConsoleLogger.cpp">
       <Filter>Logger</Filter>
+    </ClCompile>
+    <ClCompile Include="PCapPacket.cpp">
+      <Filter>Network</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

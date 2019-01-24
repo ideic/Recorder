@@ -2,6 +2,7 @@
 #include <WinSock2.h>
 #include <windows.h>
 #include <vector>
+#include <string>
 class FileOverLappedContext : public OVERLAPPED
 {
 public:
@@ -10,7 +11,7 @@ public:
 
 	HANDLE FileHandle;
 	HANDLE IOPort;
-	int Key;
+	std::string Key;
 	std::vector<char> buffer;
 };
 

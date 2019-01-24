@@ -26,7 +26,7 @@ void SocketHandler::CreateSocket(int16_t portNumber, HANDLE completionPort)
 	hints.ai_socktype = SOCK_DGRAM;
 	hints.ai_protocol = IPPROTO_UDP;
 
-	int iResult = getaddrinfo(NULL, std::to_string(portNumber).c_str(), &hints, &addrInfoInit);
+	int iResult = getaddrinfo("172.16.81.12", std::to_string(portNumber).c_str(), &hints, &addrInfoInit);
 	if (iResult != 0) {
 		throw std::runtime_error("getaddrinfo failed with error:" + iResult);
 	}
@@ -69,4 +69,10 @@ void SocketHandler::CreateSocket(int16_t portNumber, HANDLE completionPort)
 	Ctx = std::make_shared<SocketOverLappedContext>();
 	Ctx->Socket = listenSocket;
 	Ctx->IOPort = listenPort;
+	Ctx->DstPort = portNumber;
+
+	/*wchar_t ip[INET_ADDRSTRLEN];
+	InetNtop(addrInfo->ai_family, &addrInfo->ai_addr, ip, INET_ADDRSTRLEN);
+	*/
+	Ctx->DstIp = inet_ntoa(((sockaddr_in*)addrInfo->ai_addr)->sin_addr);
 }

@@ -10,13 +10,17 @@
 #include "FileOverLappedContext.h"
 #include <mutex>
 #include <string>
+#include <chrono>
 class FileServer
 {
 private:
 	struct packet {
 		std::vector<char> buffer;
-		std::wstring from;
-		uint16_t port;
+		std::string fromIp;
+		uint16_t fromPort;
+		std::string dstIp;
+		uint16_t dstPort;
+		std::chrono::time_point<std::chrono::steady_clock> rxTimeSec;
 	};
 
 	struct fileInfo {
@@ -31,20 +35,23 @@ private:
 	bool _terminate;
 	BlockingQueue<packet> _queue;
 	HANDLE _completionPort{ NULL};
-	std::unordered_map<int32_t, std::shared_ptr<FileOverLappedContext>> _ctxList;
+	std::unordered_map<std::string, std::shared_ptr<FileOverLappedContext>> _ctxList;
 	std::unordered_map<std::wstring, fileInfo> _fileHandleList;
 
 	std::mutex _fileMutex;
+	std::mutex _ctxMutex;
 
 	void ReceivedPacketWorker();
 	void FileWriterWorker();
 	FileServer::fileInfo OpenFile(FileServer::packet ppacket);
+
+	void TransformCtxToUDPacket(std::shared_ptr<FileOverLappedContext> ctx, FileServer::packet &packet);
 public:
 	FileServer(std::wstring workDir);
 	~FileServer();
 	void StartServer(uint8_t numberOfThreads);
 	void StopServer();
 
-	void SaveData(WSABUF buffer, DWORD receivedBytes, sockaddr_in  from);
+	void SaveData(WSABUF buffer, DWORD receivedBytes, sockaddr_in  from, std::string dstIp, int16_t dstPort);
 };
 

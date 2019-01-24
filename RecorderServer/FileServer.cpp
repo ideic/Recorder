@@ -3,6 +3,10 @@
 #include <algorithm>
 #include "ws2tcpip.h"
 #include "LoggerFactory.h"
+#include <chrono>
+#include "PCapPacket.h"
+#include <locale> 
+#include <codecvt>
 
 FileServer::FileServer(std::wstring workDir): _workDir(workDir), _terminate(false)
 {
@@ -81,7 +85,10 @@ void FileServer::FileWriterWorker() {
 			if (&numberOfBytes > 0) {
 
 				auto overlappedContext = (FileOverLappedContext*)ctx;
-				_ctxList.erase(overlappedContext->Key);
+				{
+					std::lock_guard<std::mutex> _ctxLock(_ctxMutex);
+					_ctxList.erase(overlappedContext->Key);
+				}
 			}
 		}
 	}
@@ -100,13 +107,22 @@ void FileServer::ReceivedPacketWorker()
 		std::shared_ptr<FileOverLappedContext> ctx = std::make_shared<FileOverLappedContext>();
 		ctx->FileHandle = fileInfo.fileHandle;
 		ctx->IOPort = fileInfo.IOPort;
-		ctx->Key = packet.port;
+
+		auto nanosec = std::chrono::duration_cast<std::chrono::nanoseconds>(packet.rxTimeSec.time_since_epoch()).count();
+		ctx->Key = packet.fromIp + std::to_string(packet.fromPort) + std::to_string(nanosec);
 		ctx->buffer = packet.buffer;
 
-		while (_ctxList.find(ctx->Key) != _ctxList.end()) {
-			ctx->Key = ctx->Key + 10000;
+		{
+			std::lock_guard<std::mutex> _ctxLock(_ctxMutex);
+			//while (_ctxList.find(ctx->Key) != _ctxList.end()) {
+			//	ctx->Key = ctx->Key + 10000;
+			//}
+
+			_ctxList.emplace(ctx->Key, ctx);
 		}
-		_ctxList.emplace(packet.port, ctx);
+
+		TransformCtxToUDPacket(ctx, packet);
+
 		WriteFile(fileInfo.fileHandle, ctx->buffer.data(), static_cast<DWORD>(ctx->buffer.size()), NULL, ctx.get());
 	}
 
@@ -118,8 +134,32 @@ void FileServer::ReceivedPacketWorker()
 	}
 }
 
+void FileServer::TransformCtxToUDPacket(std::shared_ptr<FileOverLappedContext> ctx, FileServer::packet &packet) {
+	//UDPPacket udp(ctx->buffer.size());
+
+	//auto dstIpRaw = ntohl(inet_addr(packet.dstIp.c_str()));
+
+	//udp.SetDstAddr(dstIpRaw);
+
+
+	//udp->SetDstPort(dstPort);
+	//udp->SetSrcAddr(srcIP);
+	//udp->SetSrcPort(srcPort);
+	//udp->SetTimeH(tsSec);
+	//udp->SetTimeL(tsUSec);
+	//ippsCopy_8u((Ipp8u*)pkt, (Ipp8u*)udp->GetPayload(), size);
+	//udp->SetPayloadSize(size);
+
+	//char *p = 0;
+	//udp->GetPcapBuffer(&p, size);
+	//fwrite(p, size, 1, f);
+
+}
+
 FileServer::fileInfo FileServer::OpenFile(FileServer::packet ppacket) {
-	std::wstring fileName = _workDir + ppacket.from + L"." +std::to_wstring(ppacket.port) + L".raw";
+	std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
+
+	std::wstring fileName = _workDir + converter.from_bytes(ppacket.fromIp)  + L"." +std::to_wstring(ppacket.fromPort) + L".raw";
 	
 	std::lock_guard<std::mutex> guard(_fileMutex);
 
@@ -147,7 +187,7 @@ FileServer::fileInfo FileServer::OpenFile(FileServer::packet ppacket) {
 		}
 	}
 	
-	result.IOPort = CreateIoCompletionPort(result.fileHandle, _completionPort, (int16_t)ppacket.port, 0);
+	result.IOPort = CreateIoCompletionPort(result.fileHandle, _completionPort, (int16_t)ppacket.fromPort, 0);
 
 	if (!result.IOPort) {
 		int error = GetLastError();
@@ -158,16 +198,21 @@ FileServer::fileInfo FileServer::OpenFile(FileServer::packet ppacket) {
 	return result;
 }
 
-void FileServer::SaveData(WSABUF buffer, DWORD receivedBytes, sockaddr_in from)
+void FileServer::SaveData(WSABUF buffer, DWORD receivedBytes, sockaddr_in from, std::string dstIp, int16_t dstPort)
 {
-	wchar_t ip[INET_ADDRSTRLEN];
-	InetNtop(from.sin_family, &from.sin_addr, ip, INET_ADDRSTRLEN);
+	//wchar_t ip[INET_ADDRSTRLEN];
+	//InetNtop(from.sin_family, &from.sin_addr, ip, INET_ADDRSTRLEN);
 
 	packet p;
 	p.buffer.clear();
 	p.buffer.insert(p.buffer.end(), buffer.buf, buffer.buf + receivedBytes);
-	p.from = std::wstring(ip);
-	p.port = from.sin_port;
+	p.fromIp = inet_ntoa(((sockaddr_in)from).sin_addr);
+	p.fromPort = from.sin_port;
+	
+	p.dstIp = dstIp;
+	p.dstPort = dstPort;
+
+	p.rxTimeSec = std::chrono::high_resolution_clock::now();
 
 	_queue.push(std::move(p));
 }

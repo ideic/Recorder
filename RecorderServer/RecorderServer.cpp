@@ -81,7 +81,7 @@ void RecorderServer::Worker() {
 
 				auto overlappedContext = (SocketOverLappedContext*)ctx;
 		
-				_fileServer->SaveData(overlappedContext->Buffer, numberOfBytes, overlappedContext->From);
+				_fileServer->SaveData(overlappedContext->Buffer, numberOfBytes, overlappedContext->From, overlappedContext->DstIp, overlappedContext->DstPort);
 
 				overlappedContext->ResetBuffer();
 

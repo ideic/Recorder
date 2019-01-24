@@ -2,6 +2,8 @@
 
 #include <WinSock2.h>
 #include <windows.h>
+#include <stdint.h>
+#include <string>
 class SocketOverLappedContext : public OVERLAPPED
 {
 private:
@@ -10,8 +12,6 @@ private:
 public:
 	SocketOverLappedContext();
 	SocketOverLappedContext(SOCKET socket);
-	//OverLappedContext(const OverLappedContext& ctx) = default;
-	//OverLappedContext & operator=(const OverLappedContext& ctx) = default;
 
 	~SocketOverLappedContext();
 
@@ -24,5 +24,8 @@ public:
 	sockaddr_in  From;
 	int FromLength;
 	HANDLE IOPort;
+
+	int16_t DstPort;
+	std::string DstIp;
 };
 
