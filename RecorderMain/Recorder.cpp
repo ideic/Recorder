@@ -80,6 +80,11 @@ int main(int argc, char* argv[])
 		LoggerFactory::Logger()->LogError(e, "RecordingServer failed ");
 		exit(1);
 	}
+	catch (...)
+	{
+		LoggerFactory::Logger()->LogError(std::exception(), "Fatal Error ");
+	}
+
 	LoggerFactory::Logger()->LogInfo("RecordingServer stopped ");
     return 0;
 }
