@@ -247,7 +247,7 @@ void FileServer::SaveData(WSABUF buffer, DWORD receivedBytes, sockaddr_in from, 
 	p.buffer.clear();
 	p.buffer.insert(p.buffer.end(), buffer.buf, buffer.buf + receivedBytes);
 	p.srcIp = inet_ntoa(((sockaddr_in)from).sin_addr);
-	p.srcPort = from.sin_port;
+	p.srcPort = ntohs(from.sin_port); 
 	
 	p.dstIp = dstIp;
 	p.dstPort = dstPort;
