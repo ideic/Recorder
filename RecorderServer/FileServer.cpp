@@ -7,7 +7,7 @@
 #include "PCapPacket.h"
 #include <locale> 
 #include <codecvt>
-
+#include <fstream>
 FileServer::FileServer(std::wstring workDir): _workDir(workDir), _terminate(false)
 {
 }
@@ -109,8 +109,8 @@ void FileServer::ReceivedPacketWorker()
 		ctx->IOPort = fileInfo.IOPort;
 
 		auto nanosec = std::chrono::duration_cast<std::chrono::nanoseconds>(packet.rxTimeSec.time_since_epoch()).count();
-		ctx->Key = packet.fromIp + std::to_string(packet.fromPort) + std::to_string(nanosec);
-		ctx->buffer = packet.buffer;
+		ctx->Key = packet.srcIp + std::to_string(packet.srcPort) + std::to_string(nanosec);
+		//ctx->buffer = packet.buffer;
 
 		{
 			std::lock_guard<std::mutex> _ctxLock(_ctxMutex);
@@ -121,7 +121,7 @@ void FileServer::ReceivedPacketWorker()
 			_ctxList.emplace(ctx->Key, ctx);
 		}
 
-		TransformCtxToUDPacket(ctx, packet);
+		SetPCapBuffer(ctx->buffer, packet);
 
 		WriteFile(fileInfo.fileHandle, ctx->buffer.data(), static_cast<DWORD>(ctx->buffer.size()), NULL, ctx.get());
 	}
@@ -134,32 +134,71 @@ void FileServer::ReceivedPacketWorker()
 	}
 }
 
-void FileServer::TransformCtxToUDPacket(std::shared_ptr<FileOverLappedContext> ctx, FileServer::packet &packet) {
-	//UDPPacket udp(ctx->buffer.size());
+void FileServer::SetPCapBuffer(std::vector<char> &buffer, FileServer::packet &packet) {
+	UDPPacket udp(packet.buffer.size()+100);
 
-	//auto dstIpRaw = ntohl(inet_addr(packet.dstIp.c_str()));
+	auto dstIpRaw = ntohl(inet_addr(packet.dstIp.c_str()));
 
-	//udp.SetDstAddr(dstIpRaw);
+	udp.SetDstAddr(dstIpRaw);
+	udp.SetDstPort(packet.dstPort);
+	
+	udp.SetSrcAddr(ntohl(inet_addr(packet.srcIp.c_str())));
+	udp.SetSrcPort(packet.srcPort);
+	
+	auto sec = std::chrono::duration_cast<std::chrono::seconds>(packet.rxTimeSec.time_since_epoch()).count();
+	auto microsec = std::chrono::duration_cast<std::chrono::microseconds>(packet.rxTimeSec.time_since_epoch()).count() % 1000000;
+	udp.SetTimeH(sec);
+	udp.SetTimeL(microsec);
+	
+	memcpy(udp.GetPayload(), packet.buffer.data(), packet.buffer.size());
+	udp.SetPayloadSize(packet.buffer.size());
 
+	char *p = 0;
+	unsigned int pCapSize;
+	udp.GetPcapBuffer(&p, pCapSize);
 
-	//udp->SetDstPort(dstPort);
-	//udp->SetSrcAddr(srcIP);
-	//udp->SetSrcPort(srcPort);
-	//udp->SetTimeH(tsSec);
-	//udp->SetTimeL(tsUSec);
-	//ippsCopy_8u((Ipp8u*)pkt, (Ipp8u*)udp->GetPayload(), size);
-	//udp->SetPayloadSize(size);
+	buffer.clear();
+	buffer.insert(buffer.begin(), p, p + pCapSize);
 
-	//char *p = 0;
-	//udp->GetPcapBuffer(&p, size);
-	//fwrite(p, size, 1, f);
+}
 
+void FileServer::CreatePcapFile(std::wstring fileName)
+{
+	struct pcap_file_header {
+		uint32_t magic;
+		u_short version_major;
+		u_short version_minor;
+		int32_t thiszone;	/* gmt to local correction */
+		uint32_t sigfigs;	/* accuracy of timestamps */
+		uint32_t snaplen;	/* max length saved portion of each pkt */
+		uint32_t linktype;	/* data link type (LINKTYPE_*) */
+	};
+	std::ofstream pcapFile;
+	pcapFile.open(fileName, std::ofstream::binary | std::ofstream::out);
+
+	if (pcapFile.fail()) {
+		LoggerFactory::Logger()->LogWarning(L"Cannot Create file:" + fileName);
+		return;
+	}
+
+	pcap_file_header fileheader;
+
+	fileheader.version_major = 2;
+	fileheader.version_minor = 4;
+	fileheader.magic = 0xa1b23c4d;
+	fileheader.thiszone = 0;
+	fileheader.linktype = 1;
+	fileheader.sigfigs = 0;
+	fileheader.snaplen = 65535;
+
+	pcapFile.write(reinterpret_cast<char*>(&fileheader), sizeof(fileheader));
+	pcapFile.close();
 }
 
 FileServer::fileInfo FileServer::OpenFile(FileServer::packet ppacket) {
 	std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
 
-	std::wstring fileName = _workDir + converter.from_bytes(ppacket.fromIp)  + L"." +std::to_wstring(ppacket.fromPort) + L".raw";
+	std::wstring fileName = _workDir + converter.from_bytes(ppacket.srcIp)  + L"." +std::to_wstring(ppacket.srcPort) + L".pcap";
 	
 	std::lock_guard<std::mutex> guard(_fileMutex);
 
@@ -174,7 +213,8 @@ FileServer::fileInfo FileServer::OpenFile(FileServer::packet ppacket) {
 
 	if (result.fileHandle == INVALID_HANDLE_VALUE) {
 		if (GetLastError() == ERROR_FILE_NOT_FOUND) {
-			result.fileHandle = CreateFile(fileName.c_str(), FILE_APPEND_DATA, FILE_SHARE_WRITE, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);
+			CreatePcapFile(fileName);
+			result.fileHandle = CreateFile(fileName.c_str(), FILE_APPEND_DATA, FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);//CreateFile(fileName.c_str(), FILE_APPEND_DATA, FILE_SHARE_WRITE, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);
 			if (result.fileHandle == INVALID_HANDLE_VALUE) {
 				LoggerFactory::Logger()->LogWarning(L"Cannot Create file:" + fileName);
 				return result;
@@ -187,7 +227,7 @@ FileServer::fileInfo FileServer::OpenFile(FileServer::packet ppacket) {
 		}
 	}
 	
-	result.IOPort = CreateIoCompletionPort(result.fileHandle, _completionPort, (int16_t)ppacket.fromPort, 0);
+	result.IOPort = CreateIoCompletionPort(result.fileHandle, _completionPort, (int16_t)ppacket.srcPort, 0);
 
 	if (!result.IOPort) {
 		int error = GetLastError();
@@ -206,13 +246,13 @@ void FileServer::SaveData(WSABUF buffer, DWORD receivedBytes, sockaddr_in from, 
 	packet p;
 	p.buffer.clear();
 	p.buffer.insert(p.buffer.end(), buffer.buf, buffer.buf + receivedBytes);
-	p.fromIp = inet_ntoa(((sockaddr_in)from).sin_addr);
-	p.fromPort = from.sin_port;
+	p.srcIp = inet_ntoa(((sockaddr_in)from).sin_addr);
+	p.srcPort = from.sin_port;
 	
 	p.dstIp = dstIp;
 	p.dstPort = dstPort;
 
-	p.rxTimeSec = std::chrono::high_resolution_clock::now();
+	p.rxTimeSec = std::chrono::system_clock::now();
 
 	_queue.push(std::move(p));
 }

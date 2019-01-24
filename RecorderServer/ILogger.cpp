@@ -17,8 +17,8 @@ void ILogger::LogWarning(std::wstring & message)
 }
 std::string ILogger::Now()
 {
-		auto now = std::chrono::high_resolution_clock::now();
-		auto now2 = std::time(nullptr);
+		auto now = std::chrono::system_clock::now();
+		auto now2 = std::chrono::system_clock::to_time_t(now);
 
 		auto millisec = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch());
 		

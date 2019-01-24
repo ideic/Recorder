@@ -16,11 +16,11 @@ class FileServer
 private:
 	struct packet {
 		std::vector<char> buffer;
-		std::string fromIp;
-		uint16_t fromPort;
+		std::string srcIp;
+		uint16_t srcPort;
 		std::string dstIp;
 		uint16_t dstPort;
-		std::chrono::time_point<std::chrono::steady_clock> rxTimeSec;
+		std::chrono::time_point<std::chrono::system_clock> rxTimeSec;
 	};
 
 	struct fileInfo {
@@ -45,7 +45,8 @@ private:
 	void FileWriterWorker();
 	FileServer::fileInfo OpenFile(FileServer::packet ppacket);
 
-	void TransformCtxToUDPacket(std::shared_ptr<FileOverLappedContext> ctx, FileServer::packet &packet);
+	void SetPCapBuffer(std::vector<char> &buffer, FileServer::packet &packet);
+	void CreatePcapFile(std::wstring fileName);
 public:
 	FileServer(std::wstring workDir);
 	~FileServer();
