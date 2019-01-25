@@ -4,12 +4,13 @@
 #include <iostream>
 #include <memory>
 #include "asyncudpsocket.h"
+#include "cmfxfile.h"
+#include "cmfxfilehandler.h"
+#include "cmfxfilestore.h"
 #include "configuration.h"
 #include "completionporthandler.h"
 #include "stream.h"
 
-
-#include "header.h"
 using namespace std;
 
 
@@ -23,34 +24,39 @@ int main(int argc, char *argv[]) {
 	try {
 		Configuration::getInstance().parseParameters(argc, argv);
 
-		CompletionPortHandler completionPortHandler(Configuration::getInstance().getIoCompletionThreadCount());
-		AsyncUdpSocket udpSocket(completionPortHandler, Configuration::getInstance().getRemoteAddress());
+		CompletionPortHandler	completionPortHandler(Configuration::getInstance().getIoCompletionThreadCount());
+		CmfxFileStore			cmfxFileStore(Configuration::getInstance().getCmfxFileNames());
+		shared_ptr<CmfxFile>	cmfxFile = cmfxFileStore.getCmfxFile(Configuration::getInstance().getCmfxFileNames().front());
+
+		AsyncUdpSocketFactory asyncUdpSocketFactory(
+			completionPortHandler,
+			Configuration::getInstance().getRemoteHost(),
+			Configuration::getInstance().getRemotePort());
+
+		CmfxFileHandler cmfxFileHandler(cmfxFile, asyncUdpSocketFactory);
 
 		while (true) {
-			for (auto streamStoreItem : Configuration::getInstance().getStreamStore().getStreams()) {
-				const string& fileName = streamStoreItem.first;
-				const shared_ptr<Stream> stream = streamStoreItem.second;
 
-				time_t utcTime = time(nullptr);
-				cout << asctime(localtime(&utcTime));
-				cout << "  sending: " << fileName << endl;
+			time_t utcTime = time(nullptr);
+			cout << asctime(localtime(&utcTime));
 
-				auto startTime = chrono::steady_clock::now();
-				for (const auto& udpPacketDataList : stream->getUdpPacketDatas()) {
-					/*
-					cout << "ts: " << udpPacketDataList.timeStamp.count() << endl;
-					for (size_t i = 0; i < udpPacketDataList.udpPacketList.size(); ++i) {
-					cout << "    " << setw(2) << setfill(' ') << i << " length: " << udpPacketDataList.udpPacketList[i]->length + 42 << endl;
-					}
-					*/
-					this_thread::sleep_until(startTime + udpPacketDataList.timeStamp);
-					for (size_t i = 0; i < udpPacketDataList.udpPacketList.size(); ++i) {
-						udpSocket.sendUdpPacket(udpPacketDataList.udpPacketList[i]);
-					}
+			auto startTime = chrono::steady_clock::now();
+
+			unique_ptr<pair<shared_ptr<AsyncUdpSocket>, shared_ptr<UdpPacketDataListWithTimeStamp>>> nextPackets;
+			while ((nextPackets = cmfxFileHandler.getNextPackets()) != nullptr) {
+				shared_ptr<AsyncUdpSocket> asyncUdpSocket = nextPackets->first;
+				shared_ptr<UdpPacketDataListWithTimeStamp> udpPacketDataList = nextPackets->second;
+
+				this_thread::sleep_until(startTime + udpPacketDataList->timeStamp);
+
+				for (size_t i = 0; i < udpPacketDataList->udpPacketList.size(); ++i) {
+					asyncUdpSocket->sendUdpPacket(udpPacketDataList->udpPacketList[i]);
 				}
-
-				this_thread::sleep_for(chrono::seconds(1));
 			}
+
+			cmfxFileHandler.resetPosition();
+
+			this_thread::sleep_for(chrono::seconds(1));
 		}
 	}
 	catch (const exception& e) {

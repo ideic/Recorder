@@ -2,24 +2,24 @@
 #include <chrono>
 #include <string>
 #include <vector>
+#include "header.h"
 #include "udp.h"
 
 
-typedef struct {
+struct UdpPacketDataListWithTimeStamp {
 	std::vector<UdpPacketDataPtr> udpPacketList;
 	std::chrono::microseconds timeStamp;
-} UdpPacketDataListWithTimeStamp;
+};
 
 
 class Stream {
-	std::vector<UdpPacketDataListWithTimeStamp> udpPacketDatas;
-
-	void processFile(const std::string& fileName);
-	UdpPacketDataPtr getUdpPacketData(const std::vector<uint8_t>& pcapData);
+	std::vector<std::shared_ptr<UdpPacketDataListWithTimeStamp>> udpPacketDatas;
 
 public:
-	Stream(const std::string& fileName);
+	Stream();
 	~Stream();
 
-	const std::vector<UdpPacketDataListWithTimeStamp>& getUdpPacketDatas() const;
+	void addUdpPacket(const std::chrono::microseconds& timeStamp, UdpPacketDataPtr udpPacket);
+
+	const std::vector<std::shared_ptr<UdpPacketDataListWithTimeStamp>>& getUdpPacketDatas() const { return udpPacketDatas; }
 };
