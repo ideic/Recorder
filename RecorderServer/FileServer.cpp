@@ -62,8 +62,26 @@ void FileServer::StopServer() {
 		worker.join();
 	};
 
+
+	LoggerFactory::Logger()->LogInfo("Stop FileServer Close Files");
+
+	for (auto& fileHandle : _fileHandleList) {
+		try
+		{
+			CloseHandle(fileHandle.second.fileHandle);
+		}
+		catch (const std::exception& ex)
+		{
+			LoggerFactory::Logger()->LogError(ex, "Close File failed with error:" + GetLastError());
+		}
+		//CloseHandle(fileHandle.second.IOPort);
+	}
+
 	_receivedPacketWorkers.clear();
 	_fileWriterWorkers.clear();
+
+	_fileHandleList.clear();
+	_ctxList.clear();
 }
 
 void FileServer::FileWriterWorker() {
@@ -124,13 +142,6 @@ void FileServer::ReceivedPacketWorker()
 		SetPCapBuffer(ctx->buffer, packet);
 
 		WriteFile(fileInfo.fileHandle, ctx->buffer.data(), static_cast<DWORD>(ctx->buffer.size()), NULL, ctx.get());
-	}
-
-	LoggerFactory::Logger()->LogInfo("Stop FileServer Close Files");
-
-	for (auto& fileHandle : _fileHandleList) {
-		CloseHandle(fileHandle.second.fileHandle);
-		//CloseHandle(fileHandle.second.IOPort);
 	}
 }
 
