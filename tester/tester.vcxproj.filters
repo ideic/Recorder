@@ -30,10 +30,16 @@
     <ClCompile Include="asyncudpsocket.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="streamstore.cpp">
+    <ClCompile Include="configuration.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="configuration.cpp">
+    <ClCompile Include="cmfxfile.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="cmfxfilestore.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="cmfxfilehandler.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -59,13 +65,19 @@
     <ClInclude Include="udp.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="streamstore.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="asynchandler.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="configuration.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cmfxfile.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cmfxfilestore.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cmfxfilehandler.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
