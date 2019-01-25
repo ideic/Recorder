@@ -114,9 +114,18 @@ void RecorderServer::CreatePort(const std::string &host, int port) {
 
 	std::shared_ptr<SocketHandler>  socket = std::make_shared<SocketHandler>();
 
-	socket->CreateSocket(host, port, _completionPort);
+	try
+	{
 
-	_openPorts.push_back(socket);
+		socket->CreateSocket(host, port, _completionPort);
+
+		_openPorts.push_back(socket);
+	}
+	catch (const std::exception& e)
+	{
+		LoggerFactory::Logger()->LogError(e, "Create socker error on host:" + host + "port:" + std::to_string(port));
+		return;
+	}
 
 	auto & ctx = socket->Ctx;
 	ctx->ResetBuffer();
