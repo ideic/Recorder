@@ -7,6 +7,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RecorderMain", "RecorderMai
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RecorderServer", "RecorderServer\RecorderServer.vcxproj", "{B19218DB-FE13-421F-9D94-B132C0604249}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RecorderServerUnitTest", "RecorderServerUnitTest\RecorderServerUnitTest.vcxproj", "{0B1C25FC-D01D-448E-8126-58674CD83275}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -31,6 +33,14 @@ Global
 		{B19218DB-FE13-421F-9D94-B132C0604249}.Release|x64.Build.0 = Release|x64
 		{B19218DB-FE13-421F-9D94-B132C0604249}.Release|x86.ActiveCfg = Release|Win32
 		{B19218DB-FE13-421F-9D94-B132C0604249}.Release|x86.Build.0 = Release|Win32
+		{0B1C25FC-D01D-448E-8126-58674CD83275}.Debug|x64.ActiveCfg = Debug|x64
+		{0B1C25FC-D01D-448E-8126-58674CD83275}.Debug|x64.Build.0 = Debug|x64
+		{0B1C25FC-D01D-448E-8126-58674CD83275}.Debug|x86.ActiveCfg = Debug|Win32
+		{0B1C25FC-D01D-448E-8126-58674CD83275}.Debug|x86.Build.0 = Debug|Win32
+		{0B1C25FC-D01D-448E-8126-58674CD83275}.Release|x64.ActiveCfg = Release|x64
+		{0B1C25FC-D01D-448E-8126-58674CD83275}.Release|x64.Build.0 = Release|x64
+		{0B1C25FC-D01D-448E-8126-58674CD83275}.Release|x86.ActiveCfg = Release|Win32
+		{0B1C25FC-D01D-448E-8126-58674CD83275}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
