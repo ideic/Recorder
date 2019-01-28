@@ -48,8 +48,7 @@ void FileServer::StopServer() {
 
 	//wake up all the threads, which are locked on queue
 	for (auto& worker : _receivedPacketWorkers) {
-		packet p;
-		_queue.push(std::move(p));
+		_queue.push(std::make_shared<packet>());
 	};
 
 	for (auto& worker : _receivedPacketWorkers) {
@@ -105,7 +104,10 @@ void FileServer::FileWriterWorker() {
 				auto overlappedContext = (FileOverLappedContext*)ctx;
 				{
 					std::lock_guard<std::mutex> _ctxLock(_ctxMutex);
-					_ctxList.erase(overlappedContext->Key);
+					auto key = overlappedContext->Key;
+					_ctxList[key]->buffer.clear();
+					_ctxList[key].reset();
+					_ctxList.erase(key);
 				}
 			}
 			else {
@@ -135,7 +137,7 @@ void FileServer::ReceivedPacketWorker()
 	while (!_terminate) {
 		auto packet = _queue.getNext();
 
-		if (packet.buffer.size() == 0) continue;
+		if (packet->buffer.size() == 0) continue;
 
 		auto fileInfo = OpenFile(packet);
 		if (fileInfo.fileHandle == INVALID_HANDLE_VALUE || !fileInfo.IOPort) continue;
@@ -144,39 +146,40 @@ void FileServer::ReceivedPacketWorker()
 		ctx->FileHandle = fileInfo.fileHandle;
 		ctx->IOPort = fileInfo.IOPort;
 
-		//auto nanosec =  std::chrono::duration_cast<std::chrono::nanoseconds>(packet.rxTimeSec.time_since_epoch()).count();
 		ctx->Key = _keyCounter++;//packet.srcIp + std::to_string(packet.srcPort) + std::to_string(nanosec);
-		//ctx->buffer = packet.buffer;
+
+		SetPCapBuffer(ctx->buffer, packet);
 
 		{
 			std::lock_guard<std::mutex> _ctxLock(_ctxMutex);
 			_ctxList.emplace(ctx->Key, ctx);
 		}
-
-		SetPCapBuffer(ctx->buffer, packet);
-
 		WriteFile(fileInfo.fileHandle, ctx->buffer.data(), static_cast<DWORD>(ctx->buffer.size()), NULL, ctx.get());
+
+		packet->buffer.clear();
+		packet.reset();
 	}
+
 }
 
-void FileServer::SetPCapBuffer(std::vector<char> &buffer, FileServer::packet &packet) {
-	UDPPacket udp(packet.buffer.size()+100);
+void FileServer::SetPCapBuffer(std::vector<char> &buffer, std::shared_ptr<FileServer::packet> &packet) {
+	UDPPacket udp(packet->buffer.size()+100);
 
-	auto dstIpRaw = ntohl(inet_addr(packet.dstIp.c_str()));
+	auto dstIpRaw = ntohl(inet_addr(packet->dstIp.c_str()));
 
 	udp.SetDstAddr(dstIpRaw);
-	udp.SetDstPort(packet.dstPort);
+	udp.SetDstPort(packet->dstPort);
 	
-	udp.SetSrcAddr(ntohl(inet_addr(packet.srcIp.c_str())));
-	udp.SetSrcPort(packet.srcPort);
+	udp.SetSrcAddr(ntohl(inet_addr(packet->srcIp.c_str())));
+	udp.SetSrcPort(packet->srcPort);
 	
-	auto sec = std::chrono::duration_cast<std::chrono::seconds>(packet.rxTimeSec.time_since_epoch()).count();
-	auto microsec = std::chrono::duration_cast<std::chrono::microseconds>(packet.rxTimeSec.time_since_epoch()).count() % 1000000;
+	auto sec = std::chrono::duration_cast<std::chrono::seconds>(packet->rxTimeSec.time_since_epoch()).count();
+	auto microsec = std::chrono::duration_cast<std::chrono::microseconds>(packet->rxTimeSec.time_since_epoch()).count() % 1000000;
 	udp.SetTimeH(sec);
 	udp.SetTimeL(microsec);
 	
-	memcpy(udp.GetPayload(), packet.buffer.data(), packet.buffer.size());
-	udp.SetPayloadSize(packet.buffer.size());
+	memcpy(udp.GetPayload(), packet->buffer.data(), packet->buffer.size());
+	udp.SetPayloadSize(packet->buffer.size());
 
 	char *p = 0;
 	unsigned int pCapSize;
@@ -220,10 +223,9 @@ void FileServer::CreatePcapFile(std::wstring fileName)
 	pcapFile.close();
 }
 
-FileServer::fileInfo FileServer::OpenFile(FileServer::packet ppacket) {
-	std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
+FileServer::fileInfo FileServer::OpenFile(std::shared_ptr<FileServer::packet> ppacket) {
 
-	std::string key = ppacket.srcIp + std::to_string(ppacket.srcPort) + std::to_string(ppacket.dstPort);
+	std::string key = ppacket->srcIp + std::to_string(ppacket->srcPort) + std::to_string(ppacket->dstPort);
 	std::lock_guard<std::mutex> guard(_fileMutex);
 
 	auto fH = _fileHandleList.find(key);
@@ -232,8 +234,9 @@ FileServer::fileInfo FileServer::OpenFile(FileServer::packet ppacket) {
 	}
 
 	FileServer::fileInfo result;
+	std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
 
-	std::wstring fileName = _workDir + converter.from_bytes(ppacket.srcIp) + L"." + std::to_wstring(ppacket.srcPort) + L"_" + std::to_wstring(ppacket.dstPort) + L".pcap";
+	std::wstring fileName = _workDir + converter.from_bytes(ppacket->srcIp) + L"." + std::to_wstring(ppacket->srcPort) + L"_" + std::to_wstring(ppacket->dstPort) + L".pcap";
 
 	result.fileHandle = CreateFile(fileName.c_str(), FILE_APPEND_DATA, FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);
 
@@ -253,7 +256,7 @@ FileServer::fileInfo FileServer::OpenFile(FileServer::packet ppacket) {
 		}
 	}
 	
-	result.IOPort = CreateIoCompletionPort(result.fileHandle, _completionPort, (int16_t)ppacket.srcPort, 0);
+	result.IOPort = CreateIoCompletionPort(result.fileHandle, _completionPort, (int16_t)ppacket->srcPort, 0);
 
 	if (!result.IOPort) {
 		int error = GetLastError();
@@ -269,16 +272,16 @@ void FileServer::SaveData(WSABUF buffer, DWORD receivedBytes, sockaddr_in from, 
 	//wchar_t ip[INET_ADDRSTRLEN];
 	//InetNtop(from.sin_family, &from.sin_addr, ip, INET_ADDRSTRLEN);
 
-	packet p;
-	p.buffer.clear();
-	p.buffer.insert(p.buffer.end(), buffer.buf, buffer.buf + receivedBytes);
-	p.srcIp = inet_ntoa(((sockaddr_in)from).sin_addr);
-	p.srcPort = ntohs(from.sin_port); 
+	std::shared_ptr<packet> p = std::make_shared<packet>();
+	p->buffer.clear();
+	p->buffer.insert(p->buffer.end(), buffer.buf, buffer.buf + receivedBytes);
+	p->srcIp = inet_ntoa(((sockaddr_in)from).sin_addr);
+	p->srcPort = ntohs(from.sin_port);
 	
-	p.dstIp = dstIp;
-	p.dstPort = dstPort;
+	p->dstIp = dstIp;
+	p->dstPort = dstPort;
 
-	p.rxTimeSec = std::chrono::system_clock::now();
+	p->rxTimeSec = std::chrono::system_clock::now();
 
 	_queue.push(std::move(p));
 }

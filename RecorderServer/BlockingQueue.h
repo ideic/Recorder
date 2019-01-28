@@ -3,6 +3,7 @@
 #include <memory>
 #include <mutex>
 #include <queue>
+#include <utility>
 
 class HttpRequest;
 
@@ -42,7 +43,7 @@ void BlockingQueue<VALUE_TYPE>::push(VALUE_TYPE&& value) {
 		throw std::logic_error("BlockingQueue<VALUE_TYPE>::push(VALUE_TYPE&& value) was called in <terminated> state!");
 	}
 
-	items.push(std::move(value));
+	items.push(std::forward<VALUE_TYPE>(value));
 	cv.notify_one();
 }
 
@@ -51,7 +52,7 @@ VALUE_TYPE BlockingQueue<VALUE_TYPE>::getNext(){
 	std::unique_lock<std::mutex> lock(mtx);
 	cv.wait(lock, [this] {return (!items.empty() || terminated); });
 
-	VALUE_TYPE result = std::move(items.front());
+	auto result = std::forward<VALUE_TYPE>(items.front());
 	items.pop();
 	return result;
 }

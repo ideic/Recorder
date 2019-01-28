@@ -34,7 +34,7 @@ private:
 	std::vector<std::thread> _fileWriterWorkers;
 
 	bool _terminate;
-	BlockingQueue<packet> _queue;
+	BlockingQueue<std::shared_ptr<packet>> _queue;
 	HANDLE _completionPort{ NULL};
 	std::atomic_uint64_t _keyCounter;
 	std::unordered_map<uint64_t, std::shared_ptr<FileOverLappedContext>> _ctxList;
@@ -45,9 +45,9 @@ private:
 
 	void ReceivedPacketWorker();
 	void FileWriterWorker();
-	FileServer::fileInfo OpenFile(FileServer::packet ppacket);
+	FileServer::fileInfo OpenFile(std::shared_ptr<FileServer::packet> ppacket);
 
-	void SetPCapBuffer(std::vector<char> &buffer, FileServer::packet &packet);
+	void SetPCapBuffer(std::vector<char> &buffer, std::shared_ptr<FileServer::packet> &packet);
 	void CreatePcapFile(std::wstring fileName);
 public:
 	FileServer(std::wstring workDir);
