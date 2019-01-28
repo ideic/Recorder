@@ -14,6 +14,6 @@ public:
 	virtual void LogInfo(const std::string &message) override;
 	virtual void LogError(const std::exception &exception, const std::string &message) override;
 
-	void AddLogger(std::shared_ptr<ILogger> logger);
+	void AddLogger(const std::shared_ptr<ILogger> &logger);
 };
 

@@ -29,14 +29,14 @@ private:
 		HANDLE IOPort;
 	};
 
-	std::wstring _workDir;
+	const std::wstring _workDir;
 	std::vector<std::thread> _receivedPacketWorkers;
 	std::vector<std::thread> _fileWriterWorkers;
 
-	bool _terminate;
+	bool _terminate{false};
 	BlockingQueue<std::shared_ptr<packet>> _queue;
 	HANDLE _completionPort{ NULL};
-	std::atomic_uint64_t _keyCounter;
+	std::atomic_uint64_t _keyCounter{0};
 	std::unordered_map<uint64_t, std::shared_ptr<FileOverLappedContext>> _ctxList;
 	std::unordered_map<std::string, fileInfo> _fileHandleList;
 
@@ -45,16 +45,16 @@ private:
 
 	void ReceivedPacketWorker();
 	void FileWriterWorker();
-	FileServer::fileInfo OpenFile(std::shared_ptr<FileServer::packet> ppacket);
+	FileServer::fileInfo OpenFile(const std::shared_ptr<FileServer::packet> &ppacket);
 
-	void SetPCapBuffer(std::vector<char> &buffer, std::shared_ptr<FileServer::packet> &packet);
-	void CreatePcapFile(std::wstring fileName);
+	void SetPCapBuffer(std::vector<char> &buffer, const std::shared_ptr<FileServer::packet> &packet);
+	void CreatePcapFile(const std::wstring &fileName);
 public:
-	FileServer(std::wstring workDir);
+	FileServer(const std::wstring &workDir);
 	~FileServer();
 	void StartServer(uint8_t numberOfThreads);
 	void StopServer();
 
-	void SaveData(WSABUF buffer, DWORD receivedBytes, sockaddr_in  from, std::string dstIp, int16_t dstPort);
+	void SaveData(const WSABUF &buffer, DWORD receivedBytes, const sockaddr_in  &from, const std::string &dstIp, int16_t dstPort);
 };
 

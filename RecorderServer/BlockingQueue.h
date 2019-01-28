@@ -52,7 +52,7 @@ VALUE_TYPE BlockingQueue<VALUE_TYPE>::getNext(){
 	std::unique_lock<std::mutex> lock(mtx);
 	cv.wait(lock, [this] {return (!items.empty() || terminated); });
 
-	auto result = std::forward<VALUE_TYPE>(items.front());
+	VALUE_TYPE result = std::move(items.front());
 	items.pop();
 	return result;
 }
