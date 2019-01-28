@@ -95,6 +95,10 @@ void RecorderServer::Worker() {
 					}
 				}
 			}
+			else
+			{
+				LoggerFactory::Logger()->LogWarning("RecordingServer Number of received bytes 0");
+			}
 		}
 		else {
 			auto iResult = WSAGetLastError();

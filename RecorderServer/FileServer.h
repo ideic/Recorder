@@ -11,6 +11,7 @@
 #include <mutex>
 #include <string>
 #include <chrono>
+#include <atomic>
 class FileServer
 {
 private:
@@ -35,8 +36,9 @@ private:
 	bool _terminate;
 	BlockingQueue<packet> _queue;
 	HANDLE _completionPort{ NULL};
-	std::unordered_map<std::string, std::shared_ptr<FileOverLappedContext>> _ctxList;
-	std::unordered_map<std::wstring, fileInfo> _fileHandleList;
+	std::atomic_uint64_t _keyCounter;
+	std::unordered_map<uint64_t, std::shared_ptr<FileOverLappedContext>> _ctxList;
+	std::unordered_map<std::string, fileInfo> _fileHandleList;
 
 	std::mutex _fileMutex;
 	std::mutex _ctxMutex;

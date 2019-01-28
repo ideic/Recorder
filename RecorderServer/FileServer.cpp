@@ -35,7 +35,7 @@ void FileServer::StartServer(uint8_t numberOfThreads)
 
 	LoggerFactory::Logger()->LogInfo("File Server starts FileWritertWorkers with threads:" + std::to_string(numberOfThreads));
 
-	for (int i = 0; i < numberOfThreads; ++i) {
+	for (int i = 0; i < (numberOfThreads-2 > 0 ? numberOfThreads - 2 : 1); ++i) {
 		_fileWriterWorkers.emplace_back([&]() {FileWriterWorker(); });
 	}
 }
@@ -108,6 +108,24 @@ void FileServer::FileWriterWorker() {
 					_ctxList.erase(overlappedContext->Key);
 				}
 			}
+			else {
+				LoggerFactory::Logger()->LogWarning("FileServer IOCP GetQueuedCompletionStatus number of received bytes is 0");
+			}
+
+		}
+		else {
+			auto iResult = WSAGetLastError();
+
+			if (iResult != WAIT_TIMEOUT)
+			{
+				LoggerFactory::Logger()->LogWarning("FileServer IOCP GetQueuedCompletionStatus failed with Code:" + iResult);
+
+				// Init Receive ?
+			}
+			else
+			{
+				if (_keyCounter> 18446744073709000000) _keyCounter = 0;
+			}
 		}
 	}
 }
@@ -126,16 +144,12 @@ void FileServer::ReceivedPacketWorker()
 		ctx->FileHandle = fileInfo.fileHandle;
 		ctx->IOPort = fileInfo.IOPort;
 
-		auto nanosec = std::chrono::duration_cast<std::chrono::nanoseconds>(packet.rxTimeSec.time_since_epoch()).count();
-		ctx->Key = packet.srcIp + std::to_string(packet.srcPort) + std::to_string(nanosec);
+		//auto nanosec =  std::chrono::duration_cast<std::chrono::nanoseconds>(packet.rxTimeSec.time_since_epoch()).count();
+		ctx->Key = _keyCounter++;//packet.srcIp + std::to_string(packet.srcPort) + std::to_string(nanosec);
 		//ctx->buffer = packet.buffer;
 
 		{
 			std::lock_guard<std::mutex> _ctxLock(_ctxMutex);
-			//while (_ctxList.find(ctx->Key) != _ctxList.end()) {
-			//	ctx->Key = ctx->Key + 10000;
-			//}
-
 			_ctxList.emplace(ctx->Key, ctx);
 		}
 
@@ -209,16 +223,17 @@ void FileServer::CreatePcapFile(std::wstring fileName)
 FileServer::fileInfo FileServer::OpenFile(FileServer::packet ppacket) {
 	std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
 
-	std::wstring fileName = _workDir + converter.from_bytes(ppacket.srcIp)  + L"." +std::to_wstring(ppacket.srcPort) + L".pcap";
-	
+	std::string key = ppacket.srcIp + std::to_string(ppacket.srcPort) + std::to_string(ppacket.dstPort);
 	std::lock_guard<std::mutex> guard(_fileMutex);
 
-	auto fH = _fileHandleList.find(fileName);
-	if ((fH) != _fileHandleList.end()) {
+	auto fH = _fileHandleList.find(key);
+	if (fH != _fileHandleList.end()) {
 		return fH->second;
 	}
 
 	FileServer::fileInfo result;
+
+	std::wstring fileName = _workDir + converter.from_bytes(ppacket.srcIp) + L"." + std::to_wstring(ppacket.srcPort) + L"_" + std::to_wstring(ppacket.dstPort) + L".pcap";
 
 	result.fileHandle = CreateFile(fileName.c_str(), FILE_APPEND_DATA, FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);
 
@@ -245,7 +260,7 @@ FileServer::fileInfo FileServer::OpenFile(FileServer::packet ppacket) {
 		LoggerFactory::Logger()->LogWarning("Cannot Create file IOPort:" + error);
 	}
 
-	_fileHandleList[fileName] = result;
+	_fileHandleList[key] = result;
 	return result;
 }
 

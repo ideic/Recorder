@@ -11,7 +11,7 @@ public:
 
 	HANDLE FileHandle;
 	HANDLE IOPort;
-	std::string Key;
+	uint64_t Key;
 	std::vector<char> buffer;
 };
 
