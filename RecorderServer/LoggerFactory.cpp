@@ -11,7 +11,7 @@ LoggerFactory::LoggerFactory()
 }
 
 
-std::shared_ptr<ILogger> LoggerFactory::Logger()
+const std::shared_ptr<ILogger> LoggerFactory::Logger()
 {
 	return _logger;
 }

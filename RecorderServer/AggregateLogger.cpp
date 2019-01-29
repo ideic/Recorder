@@ -35,7 +35,7 @@ void AggregateLogger::LogError(const std::exception &exception, const  std::stri
 	}
 }
 
-void AggregateLogger::AddLogger(std::shared_ptr<ILogger> logger)
+void AggregateLogger::AddLogger(const std::shared_ptr<ILogger> &logger)
 {
 	_loggers.push_back(logger);
 }

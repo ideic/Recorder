@@ -8,7 +8,7 @@
 #include <locale> 
 #include <codecvt>
 #include <fstream>
-FileServer::FileServer(std::wstring workDir): _workDir(workDir), _terminate(false)
+FileServer::FileServer(const std::wstring &workDir): _workDir(workDir), _terminate(false)
 {
 }
 
@@ -162,7 +162,7 @@ void FileServer::ReceivedPacketWorker()
 
 }
 
-void FileServer::SetPCapBuffer(std::vector<char> &buffer, std::shared_ptr<FileServer::packet> &packet) {
+void FileServer::SetPCapBuffer(std::vector<char> &buffer, const std::shared_ptr<FileServer::packet> &packet) {
 	UDPPacket udp(packet->buffer.size()+100);
 
 	auto dstIpRaw = ntohl(inet_addr(packet->dstIp.c_str()));
@@ -190,7 +190,7 @@ void FileServer::SetPCapBuffer(std::vector<char> &buffer, std::shared_ptr<FileSe
 
 }
 
-void FileServer::CreatePcapFile(std::wstring fileName)
+void FileServer::CreatePcapFile(const std::wstring &fileName)
 {
 	struct pcap_file_header {
 		uint32_t magic;
@@ -223,7 +223,7 @@ void FileServer::CreatePcapFile(std::wstring fileName)
 	pcapFile.close();
 }
 
-FileServer::fileInfo FileServer::OpenFile(std::shared_ptr<FileServer::packet> ppacket) {
+FileServer::fileInfo FileServer::OpenFile(const std::shared_ptr<FileServer::packet> &ppacket) {
 
 	std::string key = ppacket->srcIp + std::to_string(ppacket->srcPort) + std::to_string(ppacket->dstPort);
 	std::lock_guard<std::mutex> guard(_fileMutex);
@@ -267,7 +267,7 @@ FileServer::fileInfo FileServer::OpenFile(std::shared_ptr<FileServer::packet> pp
 	return result;
 }
 
-void FileServer::SaveData(WSABUF buffer, DWORD receivedBytes, sockaddr_in from, std::string dstIp, int16_t dstPort)
+void FileServer::SaveData(const WSABUF &buffer, const DWORD receivedBytes, const sockaddr_in &from, const std::string &dstIp, int16_t dstPort)
 {
 	//wchar_t ip[INET_ADDRSTRLEN];
 	//InetNtop(from.sin_family, &from.sin_addr, ip, INET_ADDRSTRLEN);

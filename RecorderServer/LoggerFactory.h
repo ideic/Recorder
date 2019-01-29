@@ -8,7 +8,7 @@ private:
 	LoggerFactory();
 	static std::shared_ptr<AggregateLogger> _logger;
 public:
-	static std::shared_ptr<ILogger> Logger();
+	static const std::shared_ptr<ILogger> Logger();
 
 	static void InitFileLogger(std::string fileName);
 

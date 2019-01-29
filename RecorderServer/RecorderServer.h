@@ -13,7 +13,7 @@
 
 class RecorderServer {
 private:
-	bool _terminate;
+	bool _terminate{false};
 	std::vector<std::shared_ptr<SocketHandler>> _openPorts;
 	HANDLE _completionPort{NULL};
 	std::vector<std::thread> _workers;
