@@ -34,8 +34,8 @@ int main(int argc, char *argv[]) {
 			Configuration::getInstance().getRemotePort());
 
 		CmfxFileHandler cmfxFileHandler(cmfxFile, asyncUdpSocketFactory);
-
-		while (true) {
+		int i = 0;
+		while (i++ < 10) {
 
 			time_t utcTime = time(nullptr);
 			cout << asctime(localtime(&utcTime));

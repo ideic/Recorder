@@ -47,6 +47,7 @@ void AsyncUdpSocket::sendUdpPacket(const UdpPacketDataPtr& udpPacketData) {
 void AsyncUdpSocket::send(PerIoData* perIoData) {
 	static const DWORD flags = 0;
 	bool sendSuccess = false;
+	int tryIdx = 0;
 
 	memset(&perIoData->overlapped, 0, sizeof(perIoData->overlapped));
 
@@ -54,12 +55,16 @@ void AsyncUdpSocket::send(PerIoData* perIoData) {
 		if (SOCKET_ERROR == WSASendTo(socket, &perIoData->wsaBuffer, 1, NULL, flags, &remoteAddress, sizeof(sockaddr), (OVERLAPPED*)perIoData, NULL)) {
 			int lastError = WSAGetLastError();
 			if (lastError != ERROR_IO_PENDING) {
-				throw runtime_error("sendto() failed " + to_string(lastError));
+				tryIdx++;
+				if (tryIdx > 100) {
+					throw runtime_error("sendto() failed " + to_string(lastError));
+				}
 			}
 
 			this_thread::yield();
 		}
 		else {
+			tryIdx = 0;
 			sendSuccess = true;
 		}
 	}
