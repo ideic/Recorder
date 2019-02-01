@@ -13,5 +13,6 @@ public:
 	HANDLE IOPort;
 	uint64_t Key;
 	std::vector<char> buffer;
+	std::string FileInfoKey;
 };
 

@@ -27,6 +27,9 @@ private:
 	struct fileInfo {
 		HANDLE fileHandle;
 		HANDLE IOPort;
+		std::string key;
+		std::unordered_map<uint64_t, std::shared_ptr<FileOverLappedContext>> ctxList;
+		std::shared_ptr<std::mutex> ctxMutex = std::make_shared<std::mutex>();
 	};
 
 	const std::wstring _workDir;
@@ -37,15 +40,14 @@ private:
 	BlockingQueue<std::shared_ptr<packet>> _queue;
 	HANDLE _completionPort{ NULL};
 	std::atomic_uint64_t _keyCounter{0};
-	std::unordered_map<uint64_t, std::shared_ptr<FileOverLappedContext>> _ctxList;
-	std::unordered_map<std::string, fileInfo> _fileHandleList;
+	
+	std::unordered_map<std::string, std::shared_ptr<fileInfo>> _fileHandleList;
 
 	std::mutex _fileMutex;
-	std::mutex _ctxMutex;
 
 	void ReceivedPacketWorker();
 	void FileWriterWorker();
-	FileServer::fileInfo OpenFile(const std::shared_ptr<FileServer::packet> &ppacket);
+	std::shared_ptr<FileServer::fileInfo> OpenFile(const std::shared_ptr<FileServer::packet> &ppacket);
 
 	void SetPCapBuffer(std::vector<char> &buffer, const std::shared_ptr<FileServer::packet> &packet);
 	void CreatePcapFile(const std::wstring &fileName);

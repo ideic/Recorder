@@ -8,6 +8,7 @@
 #include <locale> 
 #include <codecvt>
 #include <fstream>
+#include <cassert>
 FileServer::FileServer(const std::wstring &workDir): _workDir(workDir), _terminate(false)
 {
 }
@@ -29,13 +30,13 @@ void FileServer::StartServer(uint8_t numberOfThreads)
 
 	LoggerFactory::Logger()->LogInfo("File Server starts receivedPacketWorkers with threads:" + std::to_string(numberOfThreads));
 
-	for (int i = 0; i < numberOfThreads; ++i) {
+	for (int i = 0; i < numberOfThreads*2; ++i) {
 		_receivedPacketWorkers.emplace_back([&]() {ReceivedPacketWorker(); });
 	}
 
 	LoggerFactory::Logger()->LogInfo("File Server starts FileWritertWorkers with threads:" + std::to_string(numberOfThreads));
 
-	for (int i = 0; i < (numberOfThreads-2 > 0 ? numberOfThreads - 2 : 1); ++i) {
+	for (int i = 0; i < numberOfThreads; ++i) {
 		_fileWriterWorkers.emplace_back([&]() {FileWriterWorker(); });
 	}
 }
@@ -67,7 +68,9 @@ void FileServer::StopServer() {
 	for (auto& fileHandle : _fileHandleList) {
 		try
 		{
-			CloseHandle(fileHandle.second.fileHandle);
+			CloseHandle(fileHandle.second->fileHandle);
+			fileHandle.second->ctxList.clear();
+			fileHandle.second->ctxMutex.reset();
 		}
 		catch (const std::exception& ex)
 		{
@@ -80,7 +83,6 @@ void FileServer::StopServer() {
 	_fileWriterWorkers.clear();
 
 	_fileHandleList.clear();
-	_ctxList.clear();
 }
 
 void FileServer::FileWriterWorker() {
@@ -102,12 +104,19 @@ void FileServer::FileWriterWorker() {
 			if (&numberOfBytes > 0) {
 
 				auto overlappedContext = (FileOverLappedContext*)ctx;
+				auto key = overlappedContext->Key;
+				overlappedContext->buffer.clear();
+				overlappedContext->buffer.shrink_to_fit();
+
+				std::shared_ptr<FileServer::fileInfo> fileInfo;
 				{
-					std::lock_guard<std::mutex> _ctxLock(_ctxMutex);
-					auto key = overlappedContext->Key;
-					_ctxList[key]->buffer.clear();
-					_ctxList[key].reset();
-					_ctxList.erase(key);
+					std::lock_guard<std::mutex> guard(_fileMutex);
+					fileInfo = _fileHandleList[overlappedContext->FileInfoKey];
+				}
+				{
+					std::lock_guard<std::mutex> _ctxLock(*(fileInfo->ctxMutex));
+					fileInfo->ctxList[key].reset();
+					fileInfo->ctxList.erase(key);
 				}
 			}
 			else {
@@ -139,23 +148,25 @@ void FileServer::ReceivedPacketWorker()
 
 		if (packet->buffer.size() == 0) continue;
 
-		auto fileInfo = OpenFile(packet);
-		if (fileInfo.fileHandle == INVALID_HANDLE_VALUE || !fileInfo.IOPort) continue;
+		auto& fileInfo = OpenFile(packet);
+		if (fileInfo->fileHandle == INVALID_HANDLE_VALUE || !fileInfo->IOPort) continue;
 
 		std::shared_ptr<FileOverLappedContext> ctx = std::make_shared<FileOverLappedContext>();
-		ctx->FileHandle = fileInfo.fileHandle;
-		ctx->IOPort = fileInfo.IOPort;
+		ctx->FileHandle = fileInfo->fileHandle;
+		ctx->IOPort = fileInfo->IOPort;
 
 		ctx->Key = _keyCounter++;//packet.srcIp + std::to_string(packet.srcPort) + std::to_string(nanosec);
+		ctx->FileInfoKey = fileInfo->key;
 
 		SetPCapBuffer(ctx->buffer, packet);
 
 		{
-			std::lock_guard<std::mutex> _ctxLock(_ctxMutex);
-			_ctxList.emplace(ctx->Key, ctx);
+			std::lock_guard<std::mutex> _ctxLock(*fileInfo->ctxMutex);
+			fileInfo->ctxList.emplace(ctx->Key, ctx);
 		}
-		WriteFile(fileInfo.fileHandle, ctx->buffer.data(), static_cast<DWORD>(ctx->buffer.size()), NULL, ctx.get());
+		WriteFile(fileInfo->fileHandle, ctx->buffer.data(), static_cast<DWORD>(ctx->buffer.size()), NULL, ctx.get());
 
+		assert(packet.use_count() == 1, "SharedPtr reference is not 1");
 		packet->buffer.clear();
 		packet.reset();
 	}
@@ -223,28 +234,28 @@ void FileServer::CreatePcapFile(const std::wstring &fileName)
 	pcapFile.close();
 }
 
-FileServer::fileInfo FileServer::OpenFile(const std::shared_ptr<FileServer::packet> &ppacket) {
+std::shared_ptr<FileServer::fileInfo> FileServer::OpenFile(const std::shared_ptr<FileServer::packet> &ppacket) {
 
-	std::string key = ppacket->srcIp + std::to_string(ppacket->srcPort) + std::to_string(ppacket->dstPort);
+	std::shared_ptr<FileServer::fileInfo> result = std::make_shared<FileServer::fileInfo>();
+	result->key = ppacket->srcIp + std::to_string(ppacket->srcPort) + std::to_string(ppacket->dstPort);
 	std::lock_guard<std::mutex> guard(_fileMutex);
 
-	auto fH = _fileHandleList.find(key);
+	auto fH = _fileHandleList.find(result->key);
 	if (fH != _fileHandleList.end()) {
 		return fH->second;
 	}
 
-	FileServer::fileInfo result;
 	std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
 
 	std::wstring fileName = _workDir + converter.from_bytes(ppacket->srcIp) + L"." + std::to_wstring(ppacket->srcPort) + L"_" + std::to_wstring(ppacket->dstPort) + L".pcap";
 
-	result.fileHandle = CreateFile(fileName.c_str(), FILE_APPEND_DATA, FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);
+	result->fileHandle = CreateFile(fileName.c_str(), FILE_APPEND_DATA, FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);
 
-	if (result.fileHandle == INVALID_HANDLE_VALUE) {
+	if (result->fileHandle == INVALID_HANDLE_VALUE) {
 		if (GetLastError() == ERROR_FILE_NOT_FOUND) {
 			CreatePcapFile(fileName);
-			result.fileHandle = CreateFile(fileName.c_str(), FILE_APPEND_DATA, FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);//CreateFile(fileName.c_str(), FILE_APPEND_DATA, FILE_SHARE_WRITE, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);
-			if (result.fileHandle == INVALID_HANDLE_VALUE) {
+			result->fileHandle = CreateFile(fileName.c_str(), FILE_APPEND_DATA, FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);//CreateFile(fileName.c_str(), FILE_APPEND_DATA, FILE_SHARE_WRITE, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);
+			if (result->fileHandle == INVALID_HANDLE_VALUE) {
 				LoggerFactory::Logger()->LogWarning(L"Cannot Create file:" + fileName);
 				return result;
 			}
@@ -256,14 +267,14 @@ FileServer::fileInfo FileServer::OpenFile(const std::shared_ptr<FileServer::pack
 		}
 	}
 	
-	result.IOPort = CreateIoCompletionPort(result.fileHandle, _completionPort, (int16_t)ppacket->srcPort, 0);
+	result->IOPort = CreateIoCompletionPort(result->fileHandle, _completionPort, (int16_t)ppacket->srcPort, 0);
 
-	if (!result.IOPort) {
+	if (!result->IOPort) {
 		int error = GetLastError();
 		LoggerFactory::Logger()->LogWarning("Cannot Create file IOPort:" + error);
 	}
 
-	_fileHandleList[key] = result;
+	_fileHandleList[result->key] = result;
 	return result;
 }
 
