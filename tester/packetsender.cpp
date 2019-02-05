@@ -25,15 +25,19 @@ void PacketSender::join() {
 }
 
 void PacketSender::workerFunc() {
-	while (blockingQueue.hasNext()) {
-		std::unique_ptr<std::pair<std::shared_ptr<AsyncUdpSocket>, std::shared_ptr<UdpPacketDataListWithTimeStamp>>> packetListWithSocket = blockingQueue.getNext();
-		shared_ptr<AsyncUdpSocket> asyncUdpSocket = packetListWithSocket->first;
-		shared_ptr<UdpPacketDataListWithTimeStamp> udpPacketDataList = packetListWithSocket->second;
+	try {
+		while (true) {
+			std::unique_ptr<std::pair<std::shared_ptr<AsyncUdpSocket>, std::shared_ptr<UdpPacketDataListWithTimeStamp>>> packetListWithSocket = blockingQueue.getNext();
+			shared_ptr<AsyncUdpSocket> asyncUdpSocket = packetListWithSocket->first;
+			shared_ptr<UdpPacketDataListWithTimeStamp> udpPacketDataList = packetListWithSocket->second;
 
-		this_thread::sleep_until(startTime + udpPacketDataList->timeStamp);
+			this_thread::sleep_until(startTime + udpPacketDataList->timeStamp);
 
-		for (size_t i = 0; i < udpPacketDataList->udpPacketList.size(); ++i) {
-			asyncUdpSocket->sendUdpPacket(udpPacketDataList->udpPacketList[i]);
+			for (size_t i = 0; i < udpPacketDataList->udpPacketList.size(); ++i) {
+				asyncUdpSocket->sendUdpPacket(udpPacketDataList->udpPacketList[i]);
+			}
 		}
+	}
+	catch (const BlockingQueueTerminated&) {
 	}
 }

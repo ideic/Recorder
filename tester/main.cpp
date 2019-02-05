@@ -43,9 +43,12 @@ int main(int argc, char *argv[]) {
 			}
 		}
 
-		cout << "Starting to send " << streamCount << " streams" << endl;
+		time_t t;
+		auto startTime = chrono::system_clock::now();
+		t = chrono::system_clock::to_time_t(startTime);
+		cout << put_time(localtime(&t), "%Y-%m-%d %H:%M:%S") << " Starting to send " << streamCount << " streams" << endl;
 
-		BlockingQueueUdpPacket queue(100);
+		BlockingQueueUdpPacket queue(Configuration::getInstance().getSendInstanceCount() * Configuration::getInstance().getCmfxFileNames().size() * 10);
 		PacketSender packetSender(queue, Configuration::getInstance().getSenderThreadCount(), chrono::steady_clock::now());
 
 		unique_ptr<pair<shared_ptr<AsyncUdpSocket>, shared_ptr<UdpPacketDataListWithTimeStamp>>> packetListWithSocket;
@@ -55,6 +58,10 @@ int main(int argc, char *argv[]) {
 
 		queue.terminate();
 		packetSender.join();
+
+		auto endTime = chrono::system_clock::now();
+		t = chrono::system_clock::to_time_t(endTime);
+		cout << put_time(localtime(&t), "%Y-%m-%d %H:%M:%S") << " Finnished" << endl;
 	}
 	catch (const exception& e) {
 		cerr << e.what() << endl;
