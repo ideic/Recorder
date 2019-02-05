@@ -14,7 +14,9 @@ Configuration::Configuration() :
 	remoteHost(),
 	remotePort(0),
 	cmfxFileNames(),
-	ioCompletionThreadCount(1)
+	ioCompletionThreadCount(1),
+	sendInstanceCount(1000),
+	senderThreadCount(1)
 {
 }
 
@@ -23,8 +25,8 @@ Configuration::~Configuration() {
 
 void Configuration::parseParameters(int argc, char *argv[]) {
 
-	if (argc != 4) {
-		cout << "Usage: " << argv[0] << " <IP_ADDRESS> <PORT> <CMFX_FILE>" << endl;
+	if (argc < 4) {
+		cout << "Usage: <IP_ADDRESS> <PORT> <CMFX_FILE>" << endl;
 		throw runtime_error("Invalid command line parameters");
 	}
 
@@ -34,6 +36,4 @@ void Configuration::parseParameters(int argc, char *argv[]) {
 	for (size_t i = 3; i < argc; ++i) {
 		cmfxFileNames.push_back(argv[i]);
 	}
-
-	ioCompletionThreadCount = 1;
 }

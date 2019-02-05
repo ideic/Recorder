@@ -1,26 +1,52 @@
 #include "cmfxfile.h"
+#include <algorithm>
 #include <chrono>
-#include <map>
-#include "asyncudpsocket.h"
+#include <iostream>
 #include "pcapfilemanager.h"
 #include "stream.h"
 
 using namespace std;
 
 
-CmfxFile::CmfxFile(const string& fileName) {
-	processFile(fileName);
+CmfxFile::CmfxFile(const string& fileName) :
+	streamCount(0)
+{
+	cout << fileName << ": " << endl;
+
+	map<u_short, shared_ptr<Stream>> streams = processFile(fileName);
+
+	cout << streams.size() << " streams found" << endl;
+
+	for (auto it = streams.begin(); streams.end() != it; ++it) {
+		std::shared_ptr<Stream> stream = it->second;
+
+		udpPacketDataLists.reserve(udpPacketDataLists.size() + stream->getUdpPacketDataLists().size());
+		for (size_t packetIndex = 0; packetIndex < stream->getUdpPacketDataLists().size(); ++packetIndex) {
+			udpPacketDataLists.push_back(make_pair(streamCount, stream->getUdpPacketDataLists().at(packetIndex)));
+		}
+
+		streamCount++;
+	}
+
+	auto sorter = [](
+		const std::pair<size_t, std::shared_ptr<UdpPacketDataListWithTimeStamp>>& a,
+		const std::pair<size_t, std::shared_ptr<UdpPacketDataListWithTimeStamp>>& b)
+	{
+		return (a.second->timeStamp < b.second->timeStamp);
+	};
+
+	sort(udpPacketDataLists.begin(), udpPacketDataLists.end(), sorter);
 }
 
 CmfxFile::~CmfxFile() {
 }
 
-void CmfxFile::processFile(const string& fileName) {
+map<u_short, shared_ptr<Stream>> CmfxFile::processFile(const string& fileName) {
 	PCapFileManager pcap(fileName);
 	pcap_pkthdr pcapHeader;
 	vector<uint8_t> pcapData;
 
-	map<u_short, shared_ptr<Stream>> streamMap;
+	map<u_short, shared_ptr<Stream>> streams;
 
 	// First packet is the pcap file header, drop it
 	pcap.pcap_next_ex(pcapHeader, pcapData);
@@ -34,16 +60,17 @@ void CmfxFile::processFile(const string& fileName) {
 		const chrono::microseconds timeStamp = chrono::seconds(pcapHeader.ts.tv_sec) + chrono::microseconds(pcapHeader.ts.tv_usec);
 		const udp_header* udpHeader = toUdpHeader(pcapData);
 
-		auto streamMapIt = streamMap.find(udpHeader->dport);
-		if (streamMap.end() == streamMapIt) {
+		auto it = streams.find(udpHeader->dport);
+		if (streams.end() == it) {
 			shared_ptr<Stream> newStream(new Stream());
-			streamMapIt = streamMap.insert(make_pair(udpHeader->dport, newStream)).first;
-			streams.push_back(newStream);
+			it = streams.insert(make_pair(udpHeader->dport, newStream)).first;
 		}
 
-		shared_ptr<Stream> stream = streamMapIt->second;
+		shared_ptr<Stream> stream = it->second;
 		stream->addUdpPacket(timeStamp, getUdpPacketData(udpHeader));
 	}
+
+	return streams;
 }
 
 udp_header* CmfxFile::toUdpHeader(const vector<uint8_t>& pcapData) {

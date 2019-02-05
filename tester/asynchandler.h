@@ -2,7 +2,7 @@
 #include <WinSock2.h>
 
 
-struct PerIoData;
+struct Context;
 
 class AsyncHandler
 {
@@ -11,6 +11,6 @@ public:
 	virtual ~AsyncHandler() = default;
 
 	virtual HANDLE getHandle() const = 0;
-	virtual void onCompletion(unsigned long transferred, PerIoData* perIoData) = 0;
+	virtual void onCompletion(unsigned long transferred, struct Context* context) = 0;
 };
 

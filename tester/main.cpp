@@ -5,10 +5,11 @@
 #include <memory>
 #include "asyncudpsocket.h"
 #include "cmfxfile.h"
-#include "cmfxfilehandler.h"
 #include "cmfxfilestore.h"
+#include "cmfxhandlerstore.h"
 #include "configuration.h"
 #include "completionporthandler.h"
+#include "packetsender.h"
 #include "stream.h"
 
 using namespace std;
@@ -26,38 +27,34 @@ int main(int argc, char *argv[]) {
 
 		CompletionPortHandler	completionPortHandler(Configuration::getInstance().getIoCompletionThreadCount());
 		CmfxFileStore			cmfxFileStore(Configuration::getInstance().getCmfxFileNames());
-		shared_ptr<CmfxFile>	cmfxFile = cmfxFileStore.getCmfxFile(Configuration::getInstance().getCmfxFileNames().front());
+		CmfxHandlerStore		cmfxHandlerStore;
 
-		AsyncUdpSocketFactory asyncUdpSocketFactory(
-			completionPortHandler,
+		AsyncUdpSocketFactory asyncUdpSocketFactory(completionPortHandler,
 			Configuration::getInstance().getRemoteHost(),
 			Configuration::getInstance().getRemotePort());
 
-		CmfxFileHandler cmfxFileHandler(cmfxFile, asyncUdpSocketFactory);
-		int i = 0;
-		while (i++ < 10) {
+		size_t streamCount = 0;
 
-			time_t utcTime = time(nullptr);
-			cout << asctime(localtime(&utcTime));
-
-			auto startTime = chrono::steady_clock::now();
-
-			unique_ptr<pair<shared_ptr<AsyncUdpSocket>, shared_ptr<UdpPacketDataListWithTimeStamp>>> nextPackets;
-			while ((nextPackets = cmfxFileHandler.getNextPackets()) != nullptr) {
-				shared_ptr<AsyncUdpSocket> asyncUdpSocket = nextPackets->first;
-				shared_ptr<UdpPacketDataListWithTimeStamp> udpPacketDataList = nextPackets->second;
-
-				this_thread::sleep_until(startTime + udpPacketDataList->timeStamp);
-
-				for (size_t i = 0; i < udpPacketDataList->udpPacketList.size(); ++i) {
-					asyncUdpSocket->sendUdpPacket(udpPacketDataList->udpPacketList[i]);
-				}
+		for (size_t i = 0; i < Configuration::getInstance().getSendInstanceCount(); ++i) {
+			for (auto fileName : Configuration::getInstance().getCmfxFileNames()) {
+				const shared_ptr<CmfxFile> cmfxFile = cmfxFileStore.getCmfxFile(fileName);
+				cmfxHandlerStore.add(cmfxFile, asyncUdpSocketFactory);
+				streamCount += cmfxFile->getStreamCount();
 			}
-
-			cmfxFileHandler.resetPosition();
-
-			this_thread::sleep_for(chrono::seconds(1));
 		}
+
+		cout << "Starting to send " << streamCount << " streams" << endl;
+
+		BlockingQueueUdpPacket queue(100);
+		PacketSender packetSender(queue, Configuration::getInstance().getSenderThreadCount(), chrono::steady_clock::now());
+
+		unique_ptr<pair<shared_ptr<AsyncUdpSocket>, shared_ptr<UdpPacketDataListWithTimeStamp>>> packetListWithSocket;
+		while ((packetListWithSocket = cmfxHandlerStore.getNextPacketListWithSocket()) != nullptr) {
+			queue.push(move(packetListWithSocket));
+		}
+
+		queue.terminate();
+		packetSender.join();
 	}
 	catch (const exception& e) {
 		cerr << e.what() << endl;

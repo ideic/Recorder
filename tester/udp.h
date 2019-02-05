@@ -1,4 +1,5 @@
 #pragma once
+#include <chrono>
 #include <memory>
 
 
@@ -8,3 +9,9 @@ typedef struct {
 } UdpPacketData;
 
 typedef std::shared_ptr<UdpPacketData> UdpPacketDataPtr;
+
+
+typedef struct {
+	std::vector<UdpPacketDataPtr> udpPacketList;
+	std::chrono::microseconds timeStamp;
+} UdpPacketDataListWithTimeStamp;

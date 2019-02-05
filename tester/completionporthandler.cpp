@@ -44,16 +44,16 @@ void CompletionPortHandler::workerFunc() {
 	static const DWORD timeoutMs = 500;
 	DWORD bytesTransferred = 0;
 	ULONG_PTR completionKey = 0;
-	PerIoData* perIoData = NULL;
+	struct Context* context = NULL;
 
 	while (!terminated) {
-		if (TRUE == GetQueuedCompletionStatus(completionPort, &bytesTransferred, &completionKey, (LPOVERLAPPED*)&perIoData, timeoutMs)) {
+		if (TRUE == GetQueuedCompletionStatus(completionPort, &bytesTransferred, &completionKey, (LPOVERLAPPED*)&context, timeoutMs)) {
 			AsyncHandler* asyncHandler = (AsyncHandler*)completionKey;
 			if (NULL == asyncHandler) {
 				throw logic_error("CompletionPortHandler::workerFunc(): NULL == asyncPort");
 			}
 
-			asyncHandler->onCompletion(bytesTransferred, perIoData);
+			asyncHandler->onCompletion(bytesTransferred, context);
 		}
 		else {
 			const DWORD lastError = GetLastError();

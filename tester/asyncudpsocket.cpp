@@ -2,6 +2,7 @@
 #include <iostream>
 #include <string>
 #include <WinSock2.h>
+#include <WS2tcpip.h>
 #include "completionporthandler.h"
 
 using namespace std;
@@ -21,8 +22,8 @@ AsyncUdpSocket::~AsyncUdpSocket() {
 	shutdown(socket, SD_BOTH);
 	closesocket(socket);
 
-	if (!perIoDatas.empty()) {
-		cerr << "AsyncUdpSocket::~AsyncUdpSocket()  !perIoDatas.empty()" << endl;
+	if (!contexts.empty()) {
+		cerr << "AsyncUdpSocket::~AsyncUdpSocket()  !contexts.empty()" << endl;
 	}
 }
 
@@ -31,28 +32,28 @@ HANDLE AsyncUdpSocket::getHandle() const {
 }
 
 void AsyncUdpSocket::sendUdpPacket(const UdpPacketDataPtr& udpPacketData) {
-	shared_ptr<PerIoData> perIoData(new PerIoData());
+	shared_ptr<struct Context> context(new Context());
 
 	{
 		lock_guard<mutex> lock(mtx);
-		perIoDatas.insert(make_pair(perIoData.get(), make_pair(perIoData, udpPacketData)));
+		contexts.insert(make_pair(context.get(), make_pair(context, udpPacketData)));
 	}
 	
-	perIoData->wsaBuffer.len = (ULONG)udpPacketData->length;
-	perIoData->wsaBuffer.buf = (CHAR*)udpPacketData->buffer.get();
+	context->wsaBuffer.len = (ULONG)udpPacketData->length;
+	context->wsaBuffer.buf = (CHAR*)udpPacketData->buffer.get();
 
-	send(perIoData.get());
+	send(context.get());
 }
 
-void AsyncUdpSocket::send(PerIoData* perIoData) {
+void AsyncUdpSocket::send(struct Context* context) {
 	static const DWORD flags = 0;
 	bool sendSuccess = false;
 	int tryIdx = 0;
 
-	memset(&perIoData->overlapped, 0, sizeof(perIoData->overlapped));
+	memset(context, 0, sizeof(OVERLAPPED));
 
 	while (!sendSuccess) {
-		if (SOCKET_ERROR == WSASendTo(socket, &perIoData->wsaBuffer, 1, NULL, flags, &remoteAddress, sizeof(sockaddr), (OVERLAPPED*)perIoData, NULL)) {
+		if (SOCKET_ERROR == WSASendTo(socket, &context->wsaBuffer, 1, NULL, flags, &remoteAddress, sizeof(sockaddr), context, NULL)) {
 			int lastError = WSAGetLastError();
 			if (lastError != ERROR_IO_PENDING) {
 				tryIdx++;
@@ -70,55 +71,47 @@ void AsyncUdpSocket::send(PerIoData* perIoData) {
 	}
 }
 
-void AsyncUdpSocket::onCompletion(unsigned long transferred, PerIoData* perIoData) {
-	if (transferred > perIoData->wsaBuffer.len) {
-		throw logic_error("AsyncUdpSocket::onCompletion()  transferred > perIoData->wsaBuffer.len");
+void AsyncUdpSocket::onCompletion(unsigned long transferred, struct Context* context) {
+	if (transferred > context->wsaBuffer.len) {
+		throw logic_error("AsyncUdpSocket::onCompletion()  transferred > context->wsaBuffer.len");
 	}
 
-	if (transferred == perIoData->wsaBuffer.len) {
+	if (transferred == context->wsaBuffer.len) {
 		lock_guard<mutex> lock(mtx);
-		auto it = perIoDatas.find(perIoData);
-		if (perIoDatas.end() == it) {
-			throw logic_error("AsyncUdpSocket::onCompletion()  perIoDatas.end() == it");
+		auto it = contexts.find(context);
+		if (contexts.end() == it) {
+			throw logic_error("AsyncUdpSocket::onCompletion()  contexts.end() == it");
 		}
-		perIoDatas.erase(it);
+		contexts.erase(it);
 	}
 	else {
-		perIoData->wsaBuffer.len -= transferred;
-		perIoData->wsaBuffer.buf += transferred;
-		send(perIoData);
+		context->wsaBuffer.len -= transferred;
+		context->wsaBuffer.buf += transferred;
+		send(context);
 	}
 }
 
 AsyncUdpSocketFactory::AsyncUdpSocketFactory(CompletionPortHandler& completionPortHandler, const string& remoteHost, unsigned short port) : 
 	completionPortHandler(completionPortHandler),
 	remoteHost(remoteHost),
-	port(port)
+	port(port),
+	portIncrement(0)
 {
 }
 
-shared_ptr<AsyncUdpSocket> AsyncUdpSocketFactory::create(size_t id) {
-
-	if (sockets.size() < id) {
-		throw logic_error("AsyncUdpSocketFactory::create(size_t id)  sockets.size() < id");
+shared_ptr<AsyncUdpSocket> AsyncUdpSocketFactory::create() {
+	struct hostent *hp = gethostbyname(remoteHost.c_str());
+	if (NULL == hp) {
+		throw runtime_error("Can not resolve address: " + remoteHost);
 	}
 
-	if (sockets.size() == id) {
-		struct hostent *hp = gethostbyname(remoteHost.c_str());
-		if (NULL == hp) {
-			throw runtime_error("Can not resolve address: " + remoteHost);
-		}
+	struct sockaddr_in remoteAddress;
+	remoteAddress.sin_family = AF_INET;
+	remoteAddress.sin_port = htons(port + portIncrement);
+	memset(&remoteAddress.sin_addr, 0, sizeof(remoteAddress.sin_addr));
+	memcpy_s(&remoteAddress.sin_addr, sizeof(remoteAddress.sin_addr), hp->h_addr, hp->h_length);
 
-		struct sockaddr_in remoteAddress;
-		remoteAddress.sin_family = AF_INET;
-		remoteAddress.sin_port = htons(port + 2 * (unsigned short)id);
-		memset(&remoteAddress.sin_addr, 0, sizeof(remoteAddress.sin_addr));
-		memcpy_s(&remoteAddress.sin_addr, sizeof(remoteAddress.sin_addr), hp->h_addr, hp->h_length);
+	portIncrement += 2;
 
-		shared_ptr<AsyncUdpSocket> socket(new AsyncUdpSocket(completionPortHandler, reinterpret_cast<const sockaddr*>(&remoteAddress)));
-
-		sockets.push_back(socket);
-	}
-
-	return sockets[id];
+	return shared_ptr<AsyncUdpSocket>(new AsyncUdpSocket(completionPortHandler, reinterpret_cast<const sockaddr*>(&remoteAddress)));
 }

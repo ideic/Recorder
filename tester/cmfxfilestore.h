@@ -18,6 +18,5 @@ public:
 	~CmfxFileStore();
 
 	const std::shared_ptr<CmfxFile> getCmfxFile(const std::string& fileName) const;
-	const std::map<std::string, std::shared_ptr<CmfxFile>>& getCmfxFiles() const { return store; }
 };
 

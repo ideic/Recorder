@@ -8,55 +8,34 @@ using namespace std;
 
 
 CmfxFileHandler::CmfxFileHandler(shared_ptr<CmfxFile> cmfxFile, AsyncUdpSocketFactory& asyncUdpSocketFactory) :
-	streamCount(cmfxFile->getStreams().size()),
 	cmfxFile(cmfxFile),
-	asyncUdpSockets(streamCount),
-	packetIndexes(streamCount)
+	asyncUdpSockets(cmfxFile->getStreamCount()),
+	packetIndex(0)
 {
-	for (size_t i = 0; i < streamCount; ++i) {
-		asyncUdpSockets[i] = asyncUdpSocketFactory.create(i);
-	}
-
-	resetPosition();
-}
-
-CmfxFileHandler::~CmfxFileHandler()
-{
-}
-
-void CmfxFileHandler::resetPosition() {
-	for (size_t i = 0; i < packetIndexes.size(); ++i) {
-		packetIndexes[i] = 0;
+	for (size_t i = 0; i < asyncUdpSockets.size(); ++i) {
+		asyncUdpSockets[i] = asyncUdpSocketFactory.create();
 	}
 }
 
-unique_ptr<pair<shared_ptr<AsyncUdpSocket>, shared_ptr<UdpPacketDataListWithTimeStamp>>> CmfxFileHandler::getNextPackets() {
-	auto maxFunc = chrono::microseconds::max;
-	chrono::microseconds minTimestamp(maxFunc());
-	size_t minStreamIndex = streamCount;
+CmfxFileHandler::~CmfxFileHandler() {
+}
 
-	for (size_t streamIndex = 0; streamIndex < streamCount; ++streamIndex) {
-		shared_ptr<Stream> stream = cmfxFile->getStreams().at(streamIndex);
-		size_t packetIndex = packetIndexes[streamIndex];
-
-		if (packetIndex < stream->getUdpPacketDatas().size()) {
-			if (minTimestamp > stream->getUdpPacketDatas().at(packetIndex)->timeStamp) {
-				minTimestamp = stream->getUdpPacketDatas().at(packetIndex)->timeStamp;
-				minStreamIndex = streamIndex;
-			}
-		}
-	}
-
+unique_ptr<pair<shared_ptr<AsyncUdpSocket>, shared_ptr<UdpPacketDataListWithTimeStamp>>> CmfxFileHandler::getNextPacketListWithSocket() {
 	unique_ptr<pair<shared_ptr<AsyncUdpSocket>, shared_ptr<UdpPacketDataListWithTimeStamp>>> result;
 
-	if (minStreamIndex < streamCount) {
-		shared_ptr<AsyncUdpSocket> asyncUdpSocket = asyncUdpSockets[minStreamIndex];
-		shared_ptr<Stream> stream = cmfxFile->getStreams().at(minStreamIndex);
-		size_t packetIndex = packetIndexes[minStreamIndex];
-		shared_ptr<UdpPacketDataListWithTimeStamp> udpPacketDataList = stream->getUdpPacketDatas().at(packetIndex);
-		result.reset(new pair<shared_ptr<AsyncUdpSocket>, shared_ptr<UdpPacketDataListWithTimeStamp>>(asyncUdpSocket, udpPacketDataList));
+	if (packetIndex < cmfxFile->getUdpPacketDataLists().size()) {
+		result.reset(new pair<shared_ptr<AsyncUdpSocket>, shared_ptr<UdpPacketDataListWithTimeStamp>>(shared_ptr<AsyncUdpSocket>(), shared_ptr<UdpPacketDataListWithTimeStamp>()));
 
-		packetIndexes[minStreamIndex] += 1;
+		const std::pair<size_t, std::shared_ptr<UdpPacketDataListWithTimeStamp>>& udpPacketDataList = cmfxFile->getUdpPacketDataLists().at(packetIndex);
+		const size_t socketIndex = udpPacketDataList.first;
+
+		if (socketIndex >= asyncUdpSockets.size()) {
+			throw logic_error("CmfxFileHandler::getNextPacketListWithSocket()  socketIndex >= asyncUdpSockets.size()");
+		}
+
+		result->first = asyncUdpSockets[socketIndex];
+		result->second = udpPacketDataList.second;
+		packetIndex++;
 	}
 
 	return result;

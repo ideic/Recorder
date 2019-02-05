@@ -8,16 +8,16 @@
 
 
 class CompletionPortHandler;
-struct PerIoData;
+struct Context;
 
 class AsyncUdpSocket : public AsyncHandler {
 	sockaddr remoteAddress;
 	SOCKET socket;
 
 	std::mutex mtx;
-	std::map<void*, std::pair<std::shared_ptr<PerIoData>, UdpPacketDataPtr>> perIoDatas;
+	std::map<void*, std::pair<std::shared_ptr<struct Context>, UdpPacketDataPtr>> contexts;
 
-	void send(PerIoData* perIoData);
+	void send(struct Context* context);
 
 public:
 	AsyncUdpSocket(CompletionPortHandler& completionPortHandler, const sockaddr* remoteAddress);
@@ -25,19 +25,19 @@ public:
 
 	void sendUdpPacket(const UdpPacketDataPtr& udpPacketData);
 
-	virtual HANDLE getHandle() const;
-	virtual void onCompletion(unsigned long transferred, PerIoData* perIoData);
+	virtual HANDLE getHandle() const override;
+	virtual void onCompletion(unsigned long transferred, struct Context* context) override;
 };
 
 
 class AsyncUdpSocketFactory {
 	CompletionPortHandler& completionPortHandler;
-	std::vector<std::shared_ptr<AsyncUdpSocket>> sockets;
 	const std::string remoteHost;
-	unsigned short port;
+	const unsigned short port;
+	unsigned short portIncrement;
 
 public:
 	AsyncUdpSocketFactory(CompletionPortHandler& completionPortHandler, const std::string& remoteHost, unsigned short port);
 
-	std::shared_ptr<AsyncUdpSocket> create(size_t id);
+	std::shared_ptr<AsyncUdpSocket> create();
 };

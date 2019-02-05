@@ -1,19 +1,11 @@
 #pragma once
 #include <chrono>
-#include <string>
 #include <vector>
-#include "header.h"
 #include "udp.h"
 
 
-struct UdpPacketDataListWithTimeStamp {
-	std::vector<UdpPacketDataPtr> udpPacketList;
-	std::chrono::microseconds timeStamp;
-};
-
-
 class Stream {
-	std::vector<std::shared_ptr<UdpPacketDataListWithTimeStamp>> udpPacketDatas;
+	std::vector<std::shared_ptr<UdpPacketDataListWithTimeStamp>> udpPacketDataLists;
 
 public:
 	Stream();
@@ -21,5 +13,5 @@ public:
 
 	void addUdpPacket(const std::chrono::microseconds& timeStamp, UdpPacketDataPtr udpPacket);
 
-	const std::vector<std::shared_ptr<UdpPacketDataListWithTimeStamp>>& getUdpPacketDatas() const { return udpPacketDatas; }
+	const std::vector<std::shared_ptr<UdpPacketDataListWithTimeStamp>>& getUdpPacketDataLists() const { return udpPacketDataLists; }
 };

@@ -7,8 +7,7 @@
 
 class AsyncHandler;
 
-struct PerIoData {
-	OVERLAPPED overlapped;
+struct Context : public OVERLAPPED {
 	WSABUF wsaBuffer;
 };
 

@@ -30,11 +30,6 @@ void PCapFileManager::openFile(const string &fileName) {
 	if (!pcapFile.good()) {
 		throw runtime_error("Invalid cmfx file: " + fileName);
 	}
-
-	cout << fileName << ": " << endl;
-	cout << "PCAP file version: " << to_string(fileheader.version_major) << "." << to_string(fileheader.version_minor) << " ";
-	cout << "magic number: " << "0x" << setw(8) << setfill('0') << hex << fileheader.magic;
-	cout << endl;
 }
 
 bool PCapFileManager::pcap_next_ex(pcap_pkthdr &header, vector<uint8_t> &pkt_data) {
