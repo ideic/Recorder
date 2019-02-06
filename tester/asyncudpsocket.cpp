@@ -47,26 +47,13 @@ void AsyncUdpSocket::sendUdpPacket(const UdpPacketDataPtr& udpPacketData) {
 
 void AsyncUdpSocket::send(struct Context* context) {
 	static const DWORD flags = 0;
-	bool sendSuccess = false;
-	int tryIdx = 0;
 
 	memset(context, 0, sizeof(OVERLAPPED));
-
-	while (!sendSuccess) {
-		if (SOCKET_ERROR == WSASendTo(socket, &context->wsaBuffer, 1, NULL, flags, &remoteAddress, sizeof(sockaddr), context, NULL)) {
-			int lastError = WSAGetLastError();
-			if (lastError != ERROR_IO_PENDING) {
-				tryIdx++;
-				if (tryIdx > 100) {
-					throw runtime_error("sendto() failed " + to_string(lastError));
-				}
-			}
-
-			this_thread::yield();
-		}
-		else {
-			tryIdx = 0;
-			sendSuccess = true;
+	
+	if (SOCKET_ERROR == WSASendTo(socket, &context->wsaBuffer, 1, NULL, flags, &remoteAddress, sizeof(sockaddr), context, NULL)) {
+		int lastError = WSAGetLastError();
+		if (lastError != ERROR_IO_PENDING) {
+			throw runtime_error("sendto() failed " + to_string(lastError));
 		}
 	}
 }

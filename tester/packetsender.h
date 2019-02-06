@@ -7,7 +7,7 @@
 
 class AsyncUdpSocket;
 
-typedef BlockingQueue<std::unique_ptr<std::pair<std::shared_ptr<AsyncUdpSocket>, std::shared_ptr<UdpPacketDataListWithTimeStamp>>>> BlockingQueueUdpPacket;
+typedef BlockingQueue<std::shared_ptr<std::pair<std::shared_ptr<AsyncUdpSocket>, std::shared_ptr<UdpPacketDataListWithTimeStamp>>>> BlockingQueueUdpPacket;
 
 
 class PacketSender {

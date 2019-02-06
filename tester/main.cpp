@@ -15,6 +15,12 @@
 using namespace std;
 
 
+ostream& operator<<(ostream& os, const std::chrono::time_point<std::chrono::system_clock>& time) {
+	time_t t = chrono::system_clock::to_time_t(time);
+	os << put_time(localtime(&t), "%Y-%m-%d %H:%M:%S");
+	return os;
+}
+
 int main(int argc, char *argv[]) {
 
 	WSADATA wsaData;
@@ -35,33 +41,28 @@ int main(int argc, char *argv[]) {
 
 		size_t streamCount = 0;
 
-		for (size_t i = 0; i < Configuration::getInstance().getSendInstanceCount(); ++i) {
-			for (auto fileName : Configuration::getInstance().getCmfxFileNames()) {
-				const shared_ptr<CmfxFile> cmfxFile = cmfxFileStore.getCmfxFile(fileName);
-				cmfxHandlerStore.add(cmfxFile, asyncUdpSocketFactory);
-				streamCount += cmfxFile->getStreamCount();
-			}
+		for (auto fileName : Configuration::getInstance().getCmfxFileNames()) {
+			const shared_ptr<CmfxFile> cmfxFile = cmfxFileStore.getCmfxFile(fileName);
+			cmfxHandlerStore.add(cmfxFile, asyncUdpSocketFactory);
+			streamCount += cmfxFile->getStreamCount();
 		}
 
-		time_t t;
-		auto startTime = chrono::system_clock::now();
-		t = chrono::system_clock::to_time_t(startTime);
-		cout << put_time(localtime(&t), "%Y-%m-%d %H:%M:%S") << " Starting to send " << streamCount << " streams" << endl;
+		cout << chrono::system_clock::now() << " Starting to send " << streamCount << " streams at " << Configuration::getInstance().getSendTimes() << " times" << endl;
 
-		BlockingQueueUdpPacket queue(Configuration::getInstance().getSendInstanceCount() * Configuration::getInstance().getCmfxFileNames().size() * 10);
+		BlockingQueueUdpPacket queue(Configuration::getInstance().getSendTimes() * Configuration::getInstance().getCmfxFileNames().size() * 10);
 		PacketSender packetSender(queue, Configuration::getInstance().getSenderThreadCount(), chrono::steady_clock::now());
 
-		unique_ptr<pair<shared_ptr<AsyncUdpSocket>, shared_ptr<UdpPacketDataListWithTimeStamp>>> packetListWithSocket;
+		shared_ptr<pair<shared_ptr<AsyncUdpSocket>, shared_ptr<UdpPacketDataListWithTimeStamp>>> packetListWithSocket;
 		while ((packetListWithSocket = cmfxHandlerStore.getNextPacketListWithSocket()) != nullptr) {
-			queue.push(move(packetListWithSocket));
+			for (size_t i = 0; i < Configuration::getInstance().getSendTimes(); ++i) {
+				queue.push(packetListWithSocket);
+			}
 		}
 
 		queue.terminate();
 		packetSender.join();
 
-		auto endTime = chrono::system_clock::now();
-		t = chrono::system_clock::to_time_t(endTime);
-		cout << put_time(localtime(&t), "%Y-%m-%d %H:%M:%S") << " Finnished" << endl;
+		cout << chrono::system_clock::now() << " Finnished" << endl;
 	}
 	catch (const exception& e) {
 		cerr << e.what() << endl;

@@ -24,6 +24,7 @@ public:
 	BlockingQueue(size_t maxSize);
 	~BlockingQueue(void);
 
+	void push(const VALUE_TYPE& value);
 	void push(VALUE_TYPE&& value);
 	VALUE_TYPE getNext();
 
@@ -51,6 +52,19 @@ void BlockingQueue<VALUE_TYPE>::push(VALUE_TYPE&& value) {
 
 	cvItemRemoved.wait(lock, [this] { return (items.size() < maxSize); });
 	items.push(move(value));
+	cvNewItem.notify_one();
+}
+
+template<typename VALUE_TYPE>
+void BlockingQueue<VALUE_TYPE>::push(const VALUE_TYPE& value) {
+	std::unique_lock<std::mutex> lock(mtx);
+
+	if (terminated) {
+		throw logic_error("BlockingQueue<VALUE_TYPE>::push(const VALUE_TYPE& value) was called in <terminated> state!");
+	}
+
+	cvItemRemoved.wait(lock, [this] { return (items.size() < maxSize); });
+	items.push(value);
 	cvNewItem.notify_one();
 }
 

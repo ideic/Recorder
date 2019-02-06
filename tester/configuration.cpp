@@ -15,7 +15,7 @@ Configuration::Configuration() :
 	remotePort(0),
 	cmfxFileNames(),
 	ioCompletionThreadCount(1),
-	sendInstanceCount(500),
+	sendTimes(100),
 	senderThreadCount(4)
 {
 }

@@ -19,8 +19,8 @@ void CmfxHandlerStore::add(shared_ptr<CmfxFile> cmfxFile, AsyncUdpSocketFactory&
 	packetListWithSockets.push_back(cmfxFileHandlers.back()->getNextPacketListWithSocket());
 }
 
-bool packetListComp(const unique_ptr<pair<shared_ptr<AsyncUdpSocket>, shared_ptr<UdpPacketDataListWithTimeStamp>>>& a, 
-	const unique_ptr<pair<shared_ptr<AsyncUdpSocket>, shared_ptr<UdpPacketDataListWithTimeStamp>>>& b) {
+bool packetListComp(const shared_ptr<pair<shared_ptr<AsyncUdpSocket>, shared_ptr<UdpPacketDataListWithTimeStamp>>>& a, 
+	const shared_ptr<pair<shared_ptr<AsyncUdpSocket>, shared_ptr<UdpPacketDataListWithTimeStamp>>>& b) {
 	if (nullptr == a || nullptr == b) {
 		if (nullptr == a && nullptr == b) {
 			return a < b;
@@ -36,8 +36,8 @@ bool packetListComp(const unique_ptr<pair<shared_ptr<AsyncUdpSocket>, shared_ptr
 	return a->second->timeStamp < b->second->timeStamp;
 }
 
-unique_ptr<pair<shared_ptr<AsyncUdpSocket>, shared_ptr<UdpPacketDataListWithTimeStamp>>> CmfxHandlerStore::getNextPacketListWithSocket() {
-	unique_ptr<pair<shared_ptr<AsyncUdpSocket>, shared_ptr<UdpPacketDataListWithTimeStamp>>> result;
+shared_ptr<pair<shared_ptr<AsyncUdpSocket>, shared_ptr<UdpPacketDataListWithTimeStamp>>> CmfxHandlerStore::getNextPacketListWithSocket() {
+	shared_ptr<pair<shared_ptr<AsyncUdpSocket>, shared_ptr<UdpPacketDataListWithTimeStamp>>> result;
 
 	if (packetListWithSockets.empty()) {
 		return result;
@@ -46,7 +46,7 @@ unique_ptr<pair<shared_ptr<AsyncUdpSocket>, shared_ptr<UdpPacketDataListWithTime
 	auto it = min_element(packetListWithSockets.begin(), packetListWithSockets.end(), packetListComp);
 
 	if ((packetListWithSockets.end() != it) && (nullptr != *it)) {
-		result = move(*it);
+		result = *it;
 		const size_t index = it - packetListWithSockets.begin();
 		packetListWithSockets[index] = cmfxFileHandlers[index]->getNextPacketListWithSocket();
 	}

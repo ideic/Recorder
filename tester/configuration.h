@@ -10,7 +10,7 @@ class Configuration
 	unsigned short remotePort;
 	std::list<std::string> cmfxFileNames;
 	size_t ioCompletionThreadCount;
-	size_t sendInstanceCount;
+	size_t sendTimes;
 	size_t senderThreadCount;
 
 	Configuration();
@@ -24,7 +24,7 @@ public:
 	unsigned short getRemotePort() const { return remotePort; }
 	const std::list<std::string>& getCmfxFileNames() const { return cmfxFileNames; }
 	size_t getIoCompletionThreadCount() const { return ioCompletionThreadCount; }
-	size_t getSendInstanceCount() const { return sendInstanceCount; }
+	size_t getSendTimes() const { return sendTimes; }
 	size_t getSenderThreadCount() const { return senderThreadCount; }
 
 	static Configuration& getInstance();

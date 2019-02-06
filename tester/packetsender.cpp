@@ -27,7 +27,7 @@ void PacketSender::join() {
 void PacketSender::workerFunc() {
 	try {
 		while (true) {
-			std::unique_ptr<std::pair<std::shared_ptr<AsyncUdpSocket>, std::shared_ptr<UdpPacketDataListWithTimeStamp>>> packetListWithSocket = blockingQueue.getNext();
+			std::shared_ptr<std::pair<std::shared_ptr<AsyncUdpSocket>, std::shared_ptr<UdpPacketDataListWithTimeStamp>>> packetListWithSocket = blockingQueue.getNext();
 			shared_ptr<AsyncUdpSocket> asyncUdpSocket = packetListWithSocket->first;
 			shared_ptr<UdpPacketDataListWithTimeStamp> udpPacketDataList = packetListWithSocket->second;
 
