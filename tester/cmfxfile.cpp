@@ -8,37 +8,47 @@
 using namespace std;
 
 
-CmfxFile::CmfxFile(const string& fileName) :
-	streamCount(0)
-{
+CmfxFile::CmfxFile(const string& fileName) {
 	cout << fileName << ": " << endl;
 
-	map<u_short, shared_ptr<Stream>> streams = processFile(fileName);
-
-	cout << streams.size() << " streams found" << endl;
-
-	for (auto it = streams.begin(); streams.end() != it; ++it) {
-		std::shared_ptr<Stream> stream = it->second;
-
-		udpPacketDataLists.reserve(udpPacketDataLists.size() + stream->getUdpPacketDataLists().size());
-		for (size_t packetIndex = 0; packetIndex < stream->getUdpPacketDataLists().size(); ++packetIndex) {
-			udpPacketDataLists.push_back(make_pair(streamCount, stream->getUdpPacketDataLists().at(packetIndex)));
-		}
-
-		streamCount++;
+	map<u_short, shared_ptr<Stream>> streamMap = processFile(fileName);
+	for (auto keyValue : streamMap) {
+		streams.push_back(keyValue.second);
 	}
 
-	auto sorter = [](
-		const std::pair<size_t, std::shared_ptr<UdpPacketDataListWithTimeStamp>>& a,
-		const std::pair<size_t, std::shared_ptr<UdpPacketDataListWithTimeStamp>>& b)
-	{
-		return (a.second->timeStamp < b.second->timeStamp);
-	};
-
-	sort(udpPacketDataLists.begin(), udpPacketDataLists.end(), sorter);
+	shiftStreamsStartToZero();
 }
 
 CmfxFile::~CmfxFile() {
+}
+
+void CmfxFile::shiftStreamsStartToZero() {
+	struct TimestampComp {
+		bool operator()(const shared_ptr<Stream>& a, const shared_ptr<Stream>& b) {
+			return (a->getUdpPacketDataLists().front()->timeStamp < b->getUdpPacketDataLists().front()->timeStamp);
+		}
+	};
+
+	struct DecrementTimestamp {
+		chrono::microseconds deltaT;
+
+		DecrementTimestamp(chrono::microseconds deltaT) : deltaT(deltaT) {
+		}
+
+		void operator()(shared_ptr<UdpPacketDataListWithTimeStamp> udpPacketDataListWithTimeStamp) {
+			udpPacketDataListWithTimeStamp->timeStamp -= deltaT;
+		}
+	};
+
+	auto minTimestampIt = min_element(streams.begin(), streams.end(), TimestampComp());
+
+	if (streams.end() != minTimestampIt) {
+		auto minTimestamp = (*minTimestampIt)->getUdpPacketDataLists().front()->timeStamp;
+
+		for (auto stream : streams) {
+			for_each(stream->getUdpPacketDataLists().begin(), stream->getUdpPacketDataLists().end(), DecrementTimestamp(minTimestamp));
+		}
+	}
 }
 
 map<u_short, shared_ptr<Stream>> CmfxFile::processFile(const string& fileName) {

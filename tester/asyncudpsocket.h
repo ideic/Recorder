@@ -2,7 +2,8 @@
 #include <map>
 #include <memory>
 #include <mutex>
-#include <vector>
+#include <string>
+#include <WinSock2.h>
 #include "asynchandler.h"
 #include "udp.h"
 

@@ -10,11 +10,11 @@ class Stream;
 
 
 class CmfxFile {
-	std::vector<std::pair<size_t, std::shared_ptr<UdpPacketDataListWithTimeStamp>>> udpPacketDataLists;
-	size_t streamCount;
+	std::vector<std::shared_ptr<Stream>> streams;
 
-	std::map<u_short, std::shared_ptr<Stream>> processFile(const std::string& fileName);
+	void shiftStreamsStartToZero();
 
+	static std::map<u_short, std::shared_ptr<Stream>> processFile(const std::string& fileName);
 	static UdpPacketDataPtr getUdpPacketData(const udp_header* udpHeader);
 	static udp_header* toUdpHeader(const std::vector<uint8_t>& pcapData);
 
@@ -22,7 +22,6 @@ public:
 	CmfxFile(const std::string& fileName);
 	~CmfxFile();
 
-	const std::vector<std::pair<size_t, std::shared_ptr<UdpPacketDataListWithTimeStamp>>>& getUdpPacketDataLists() const { return udpPacketDataLists; }
-	const size_t getStreamCount() const { return streamCount;  }
+	const std::vector<std::shared_ptr<Stream>>& getStreams() const { return streams; }
 };
 

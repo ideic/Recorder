@@ -16,7 +16,7 @@ CompletionPortHandler::CompletionPortHandler(size_t threadCount) :
 	}
 
 	for (size_t i = 0; i < workerThreads.size(); ++i) {
-		workerThreads[i] = std::thread(&CompletionPortHandler::workerFunc, this);
+		workerThreads[i] = thread(&CompletionPortHandler::workerFunc, this);
 	}
 }
 
@@ -26,6 +26,8 @@ CompletionPortHandler::~CompletionPortHandler() {
 	for (size_t i = 0; i < workerThreads.size(); ++i) {
 		workerThreads[i].join();
 	}
+
+	CloseHandle(completionPort);
 }
 
 void CompletionPortHandler::attachHandler(const AsyncHandler& asyncHandler) {

@@ -15,7 +15,6 @@ class PacketSender {
 	std::vector<std::thread> workerThreads;
 	const std::chrono::time_point<std::chrono::steady_clock> startTime;
 
-
 	void workerFunc();
 
 public:

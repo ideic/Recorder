@@ -21,7 +21,7 @@ void PCapFileManager::openFile(const string &fileName) {
 	pcapFile.open(fileName, ifstream::binary | ifstream::in);
 
 	if (pcapFile.fail()) {
-		throw runtime_error("Can not open file: " + fileName + " " + strerror(errno));
+		throw runtime_error("Can not open file: " + fileName + " " + to_string(GetLastError()));
 	}
 
 	pcap_file_header fileheader;

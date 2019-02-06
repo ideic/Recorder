@@ -36,16 +36,10 @@
     <ClCompile Include="cmfxfile.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="cmfxfilestore.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="cmfxfilehandler.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="packetsender.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="cmfxhandlerstore.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -80,9 +74,6 @@
     <ClInclude Include="cmfxfile.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="cmfxfilestore.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="cmfxfilehandler.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -90,9 +81,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="packetsender.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="cmfxhandlerstore.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
