@@ -147,14 +147,12 @@
     <ClCompile Include="asyncudpsocket.cpp" />
     <ClCompile Include="cmfxfile.cpp" />
     <ClCompile Include="cmfxfilehandler.cpp" />
-    <ClCompile Include="cmfxhandlerstore.cpp" />
     <ClCompile Include="completionporthandler.cpp" />
     <ClCompile Include="configuration.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="packetsender.cpp" />
     <ClCompile Include="pcapfilemanager.cpp" />
     <ClCompile Include="stream.cpp" />
-    <ClCompile Include="cmfxfilestore.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="asynchandler.h" />
@@ -162,7 +160,6 @@
     <ClInclude Include="blockingqueue.h" />
     <ClInclude Include="cmfxfile.h" />
     <ClInclude Include="cmfxfilehandler.h" />
-    <ClInclude Include="cmfxhandlerstore.h" />
     <ClInclude Include="completionporthandler.h" />
     <ClInclude Include="configuration.h" />
     <ClInclude Include="header.h" />
@@ -170,7 +167,6 @@
     <ClInclude Include="pcap.h" />
     <ClInclude Include="pcapfilemanager.h" />
     <ClInclude Include="stream.h" />
-    <ClInclude Include="cmfxfilestore.h" />
     <ClInclude Include="udp.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

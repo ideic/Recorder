@@ -5,8 +5,7 @@
 #include <memory>
 #include "asyncudpsocket.h"
 #include "cmfxfile.h"
-#include "cmfxfilestore.h"
-#include "cmfxhandlerstore.h"
+#include "cmfxfilehandler.h"
 #include "configuration.h"
 #include "completionporthandler.h"
 #include "packetsender.h"
@@ -15,7 +14,7 @@
 using namespace std;
 
 
-ostream& operator<<(ostream& os, const std::chrono::time_point<std::chrono::system_clock>& time) {
+ostream& operator<<(ostream& os, const chrono::time_point<chrono::system_clock>& time) {
 	time_t t = chrono::system_clock::to_time_t(time);
 	os << put_time(localtime(&t), "%Y-%m-%d %H:%M:%S");
 	return os;
@@ -31,32 +30,23 @@ int main(int argc, char *argv[]) {
 	try {
 		Configuration::getInstance().parseParameters(argc, argv);
 
-		CompletionPortHandler	completionPortHandler(Configuration::getInstance().getIoCompletionThreadCount());
-		CmfxFileStore			cmfxFileStore(Configuration::getInstance().getCmfxFileNames());
-		CmfxHandlerStore		cmfxHandlerStore;
+		CompletionPortHandler completionPortHandler(Configuration::getInstance().getIoCompletionThreadCount());
+		AsyncUdpSocketFactory asyncUdpSocketFactory(completionPortHandler, Configuration::getInstance().getRemoteHost(), Configuration::getInstance().getRemotePort());
 
-		AsyncUdpSocketFactory asyncUdpSocketFactory(completionPortHandler,
-			Configuration::getInstance().getRemoteHost(),
-			Configuration::getInstance().getRemotePort());
-
-		size_t streamCount = 0;
-
+		CmfxFileHandler cmfxFileHandler(asyncUdpSocketFactory, Configuration::getInstance().getSendTimes());
 		for (auto fileName : Configuration::getInstance().getCmfxFileNames()) {
-			const shared_ptr<CmfxFile> cmfxFile = cmfxFileStore.getCmfxFile(fileName);
-			cmfxHandlerStore.add(cmfxFile, asyncUdpSocketFactory);
-			streamCount += cmfxFile->getStreamCount();
+			cmfxFileHandler.addCmfxFile(fileName);
 		}
+		cmfxFileHandler.mergeFiles();
 
-		cout << chrono::system_clock::now() << " Starting to send " << streamCount << " streams at " << Configuration::getInstance().getSendTimes() << " times" << endl;
+		cout << chrono::system_clock::now() << " Starting to send " << cmfxFileHandler.getStreamCount() << " streams at " << Configuration::getInstance().getSendTimes() << " times" << endl;
 
-		BlockingQueueUdpPacket queue(Configuration::getInstance().getSendTimes() * Configuration::getInstance().getCmfxFileNames().size() * 10);
+		BlockingQueueUdpPacket queue(Configuration::getInstance().getSendTimes() * Configuration::getInstance().getCmfxFileNames().size());
 		PacketSender packetSender(queue, Configuration::getInstance().getSenderThreadCount(), chrono::steady_clock::now());
-
 		shared_ptr<pair<shared_ptr<AsyncUdpSocket>, shared_ptr<UdpPacketDataListWithTimeStamp>>> packetListWithSocket;
-		while ((packetListWithSocket = cmfxHandlerStore.getNextPacketListWithSocket()) != nullptr) {
-			for (size_t i = 0; i < Configuration::getInstance().getSendTimes(); ++i) {
-				queue.push(packetListWithSocket);
-			}
+
+		while ((packetListWithSocket = cmfxFileHandler.getNextPacketListWithSocket()) != nullptr) {
+			queue.push(packetListWithSocket);
 		}
 
 		queue.terminate();

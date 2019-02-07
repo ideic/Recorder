@@ -12,8 +12,7 @@ struct Context : public OVERLAPPED {
 };
 
 
-class CompletionPortHandler
-{
+class CompletionPortHandler {
 	HANDLE completionPort;
 	std::atomic_bool terminated;
 	std::vector<std::thread> workerThreads;

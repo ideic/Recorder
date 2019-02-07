@@ -5,7 +5,7 @@
 using namespace std;
 
 
-PacketSender::PacketSender(BlockingQueueUdpPacket& blockingQueue, size_t threadCount, const std::chrono::time_point<std::chrono::steady_clock>& startTime) :
+PacketSender::PacketSender(BlockingQueueUdpPacket& blockingQueue, size_t threadCount, const chrono::time_point<chrono::steady_clock>& startTime) :
 	blockingQueue(blockingQueue),
 	workerThreads(threadCount),
 	startTime(startTime)
@@ -27,7 +27,7 @@ void PacketSender::join() {
 void PacketSender::workerFunc() {
 	try {
 		while (true) {
-			std::shared_ptr<std::pair<std::shared_ptr<AsyncUdpSocket>, std::shared_ptr<UdpPacketDataListWithTimeStamp>>> packetListWithSocket = blockingQueue.getNext();
+			shared_ptr<pair<shared_ptr<AsyncUdpSocket>, shared_ptr<UdpPacketDataListWithTimeStamp>>> packetListWithSocket = blockingQueue.getNext();
 			shared_ptr<AsyncUdpSocket> asyncUdpSocket = packetListWithSocket->first;
 			shared_ptr<UdpPacketDataListWithTimeStamp> udpPacketDataList = packetListWithSocket->second;
 

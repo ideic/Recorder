@@ -9,7 +9,7 @@ Stream::Stream() {
 Stream::~Stream() {
 }
 
-void Stream::addUdpPacket(const std::chrono::microseconds& timeStamp, UdpPacketDataPtr udpPacket) {
+void Stream::addUdpPacket(const chrono::microseconds& timeStamp, UdpPacketDataPtr udpPacket) {
 	if (!udpPacketDataLists.empty() && (timeStamp < udpPacketDataLists.back()->timeStamp)) {
 		throw runtime_error("Time stamp error");
 	}

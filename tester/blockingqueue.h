@@ -44,42 +44,54 @@ BlockingQueue<VALUE_TYPE>::~BlockingQueue(void) {
 
 template<typename VALUE_TYPE>
 void BlockingQueue<VALUE_TYPE>::push(VALUE_TYPE&& value) {
-	std::unique_lock<std::mutex> lock(mtx);
+	{
+		std::unique_lock<std::mutex> lock(mtx);
 
-	if (terminated) {
-		throw logic_error("BlockingQueue<VALUE_TYPE>::push(VALUE_TYPE&& value) was called in <terminated> state!");
+		if (terminated) {
+			throw logic_error("BlockingQueue<VALUE_TYPE>::push(VALUE_TYPE&& value) was called in <terminated> state!");
+		}
+
+		cvItemRemoved.wait(lock, [this] { return (items.size() < maxSize); });
+		items.push(move(value));
 	}
 
-	cvItemRemoved.wait(lock, [this] { return (items.size() < maxSize); });
-	items.push(move(value));
 	cvNewItem.notify_one();
 }
 
+
 template<typename VALUE_TYPE>
 void BlockingQueue<VALUE_TYPE>::push(const VALUE_TYPE& value) {
-	std::unique_lock<std::mutex> lock(mtx);
+	{
+		std::unique_lock<std::mutex> lock(mtx);
 
-	if (terminated) {
-		throw logic_error("BlockingQueue<VALUE_TYPE>::push(const VALUE_TYPE& value) was called in <terminated> state!");
+		if (terminated) {
+			throw logic_error("BlockingQueue<VALUE_TYPE>::push(const VALUE_TYPE& value) was called in <terminated> state!");
+		}
+
+		cvItemRemoved.wait(lock, [this] { return (items.size() < maxSize); });
+		items.push(value);
 	}
 
-	cvItemRemoved.wait(lock, [this] { return (items.size() < maxSize); });
-	items.push(value);
 	cvNewItem.notify_one();
 }
 
 template<typename VALUE_TYPE>
 VALUE_TYPE BlockingQueue<VALUE_TYPE>::getNext() {
-	std::unique_lock<std::mutex> lock(mtx);
+	VALUE_TYPE result;
 
-	cvNewItem.wait(lock, [this] { return (!items.empty() || terminated); });
+	{
+		std::unique_lock<std::mutex> lock(mtx);
 
-	if (items.empty()) {
-		throw BlockingQueueTerminated();
+		cvNewItem.wait(lock, [this] { return (!items.empty() || terminated); });
+
+		if (items.empty()) {
+			throw BlockingQueueTerminated();
+		}
+
+		result = items.front();
+		items.pop();
 	}
 
-	VALUE_TYPE result = std::move(items.front());
-	items.pop();
 	cvItemRemoved.notify_one();
 	return result;
 }

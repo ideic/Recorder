@@ -1,8 +1,6 @@
 #include "asyncudpsocket.h"
 #include <iostream>
-#include <string>
-#include <WinSock2.h>
-#include <WS2tcpip.h>
+#include <ws2tcpip.h>
 #include "completionporthandler.h"
 
 using namespace std;
@@ -23,7 +21,7 @@ AsyncUdpSocket::~AsyncUdpSocket() {
 	closesocket(socket);
 
 	if (!contexts.empty()) {
-		cerr << "AsyncUdpSocket::~AsyncUdpSocket()  !contexts.empty()" << endl;
+		cerr << "AsyncUdpSocket::~AsyncUdpSocket()  !contexts.empty()";
 	}
 }
 
@@ -51,7 +49,7 @@ void AsyncUdpSocket::send(struct Context* context) {
 	memset(context, 0, sizeof(OVERLAPPED));
 	
 	if (SOCKET_ERROR == WSASendTo(socket, &context->wsaBuffer, 1, NULL, flags, &remoteAddress, sizeof(sockaddr), context, NULL)) {
-		int lastError = WSAGetLastError();
+		const int lastError = WSAGetLastError();
 		if (lastError != ERROR_IO_PENDING) {
 			throw runtime_error("sendto() failed " + to_string(lastError));
 		}
@@ -87,18 +85,19 @@ AsyncUdpSocketFactory::AsyncUdpSocketFactory(CompletionPortHandler& completionPo
 }
 
 shared_ptr<AsyncUdpSocket> AsyncUdpSocketFactory::create() {
-	struct hostent *hp = gethostbyname(remoteHost.c_str());
-	if (NULL == hp) {
-		throw runtime_error("Can not resolve address: " + remoteHost);
-	}
+	struct addrinfo hints, *addrInfoInit;
+	ZeroMemory(&hints, sizeof(hints));
 
-	struct sockaddr_in remoteAddress;
-	remoteAddress.sin_family = AF_INET;
-	remoteAddress.sin_port = htons(port + portIncrement);
-	memset(&remoteAddress.sin_addr, 0, sizeof(remoteAddress.sin_addr));
-	memcpy_s(&remoteAddress.sin_addr, sizeof(remoteAddress.sin_addr), hp->h_addr, hp->h_length);
+	hints.ai_family = AF_INET;
+	hints.ai_socktype = SOCK_DGRAM;
+	hints.ai_protocol = IPPROTO_UDP;
+
+	if (0 != getaddrinfo(remoteHost.c_str(), std::to_string(port + portIncrement).c_str(), &hints, &addrInfoInit)) {
+		throw runtime_error("getaddrinfo failed with error:" + to_string(WSAGetLastError()));
+	}
 
 	portIncrement += 2;
 
-	return shared_ptr<AsyncUdpSocket>(new AsyncUdpSocket(completionPortHandler, reinterpret_cast<const sockaddr*>(&remoteAddress)));
+	std::shared_ptr<addrinfo> addrInfo(addrInfoInit, freeaddrinfo);
+	return shared_ptr<AsyncUdpSocket>(new AsyncUdpSocket(completionPortHandler, addrInfo->ai_addr));
 }
