@@ -37,13 +37,13 @@ BlockingQueue<VALUE_TYPE>::~BlockingQueue(void) {
 
 template<typename VALUE_TYPE>
 void BlockingQueue<VALUE_TYPE>::push(VALUE_TYPE&& value) {
-	std::unique_lock<std::mutex> lock(mtx);
-
 	if (terminated) {
 		throw std::logic_error("BlockingQueue<VALUE_TYPE>::push(VALUE_TYPE&& value) was called in <terminated> state!");
 	}
-
-	items.push(std::forward<VALUE_TYPE>(value));
+	{
+		std::unique_lock<std::mutex> lock(mtx);
+		items.push(std::forward<VALUE_TYPE>(value));
+	}
 	cv.notify_one();
 }
 
