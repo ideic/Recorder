@@ -23,6 +23,8 @@ void SocketOverLappedContext::ResetBuffer() {
 
 
 	memset(&From, 0, sizeof(sockaddr_in));
+
+	ReceivedBytes = 0;
 }
 
 SocketOverLappedContext::~SocketOverLappedContext()

@@ -46,7 +46,11 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				auto& overlappedContext = found->operator*().Ctx;
 				if (overlappedContext->ReceivedBytes > 0)
 				{
+					overlappedContext->ResetBuffer();
+					PostMessage(hwnd, WM_SOCKET, wParam, FD_READ);
+					return 0;
 					instance->_fileServer->SaveData(overlappedContext->Buffer, overlappedContext->ReceivedBytes, overlappedContext->From, overlappedContext->DstIp, overlappedContext->DstPort);
+					overlappedContext->ResetBuffer();
 				}
 				else
 				{
@@ -64,7 +68,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 					}
 
 					instance->_fileServer->SaveData(overlappedContext->Buffer, overlappedContext->ReceivedBytes, overlappedContext->From, overlappedContext->DstIp, overlappedContext->DstPort);
-
+					//overlappedContext->ResetBuffer();
 				}
 
 				return 0;
